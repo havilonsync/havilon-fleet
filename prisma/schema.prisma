@@ -1,0 +1,351 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  OWNER
+  OPS_MANAGER
+  MECHANIC
+  ACCOUNTING
+  AUDIT
+}
+
+enum VehicleStatus {
+  ACTIVE
+  GROUNDED
+  IN_REPAIR
+  DECOMMISSIONED
+}
+
+enum RepairStatus {
+  PENDING_REVIEW
+  AWAITING_ESTIMATE
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  DISPUTED
+}
+
+enum RepairCategory {
+  TIRES
+  BRAKES
+  COLLISION
+  ENGINE
+  ELECTRICAL
+  BODY
+  SUSPENSION
+  HVAC
+  GLASS
+  OTHER
+}
+
+enum FraudSeverity {
+  CRITICAL
+  WARNING
+  INFO
+}
+
+enum ApprovalTier {
+  TIER_1_STANDARD     // < $250 — ops manager only
+  TIER_2_SECONDARY    // $250–$1000 — secondary approval
+  TIER_3_OWNER        // $1000–$2500 — owner required
+  TIER_4_EXECUTIVE    // > $2500 — full executive review
+}
+
+enum PartReturnStatus {
+  NA
+  PENDING_RETURN
+  RETURNED
+  KEPT
+}
+
+// ─── TABLES ──────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  role          UserRole  @default(AUDIT)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  lastLogin     DateTime?
+
+  // relations
+  repairsRequested  Repair[]        @relation("RequestedBy")
+  repairsApproved   Repair[]        @relation("ApprovedBy")
+  approvalEvents    ApprovalEvent[]
+  notifications     Notification[]
+  vehicleAssigned   Vehicle[]       @relation("AssignedDriver")
+  partsOrdered      PartsOrder[]    @relation("OrderedBy")
+  partsApproved     PartsOrder[]    @relation("ApprovedBy")
+  fraudResolved     FraudEvent[]    @relation("ResolvedBy")
+
+  accounts Account[]
+  sessions Session[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Vehicle {
+  id                    String        @id @default(cuid())
+  vin                   String        @unique
+  vehicleNumber         String        @unique
+  licensePlate          String?
+  make                  String
+  model                 String
+  year                  Int
+  odometerCurrent       Int           @default(0)
+  odometerLastUpdated   DateTime?
+  acquisitionDate       DateTime?
+  status                VehicleStatus @default(ACTIVE)
+  isGrounded            Boolean       @default(false)
+  groundedReason        String?
+  groundedAt            DateTime?
+  estimatedValue        Float?
+  totalLifetimeRepairCost Float       @default(0)
+  totalDowntimeHours    Float         @default(0)
+  accidentCount         Int           @default(0)
+  lastInspectionDate    DateTime?
+  notes                 String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  driverId              String?
+  driver                User?         @relation("AssignedDriver", fields: [driverId], references: [id])
+
+  repairs               Repair[]
+  partsOrders           PartsOrder[]
+
+  @@map("vehicles")
+}
+
+model RepairShop {
+  id                  String    @id @default(cuid())
+  name                String
+  address             String?
+  phone               String?
+  contactPerson       String?
+  email               String?
+  categories          String[]
+  avgRepairCost       Float     @default(0)
+  avgCompletionHours  Float     @default(0)
+  totalRepairs        Int       @default(0)
+  repeatRepairRate    Float     @default(0)
+  warrantyIssueCount  Int       @default(0)
+  lifetimeSpend       Float     @default(0)
+  fraudScore          Int       @default(0)
+  fraudFlags          Json      @default("[]")
+  isActive            Boolean   @default(true)
+  isBlacklisted       Boolean   @default(false)
+  notes               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  repairs             Repair[]
+
+  @@map("repair_shops")
+}
+
+model Repair {
+  id                  String          @id @default(cuid())
+  repairNumber        String          @unique
+  status              RepairStatus    @default(PENDING_REVIEW)
+  category            RepairCategory
+  approvalTier        ApprovalTier?
+  damageType          String?
+  description         String
+  requestDate         DateTime        @default(now())
+  completionDate      DateTime?
+  estimatedCost       Float?
+  actualCost          Float?
+  laborHours          Float?
+  laborRate           Float?
+  laborCost           Float?
+  partsCost           Float?
+  totalCost           Float?
+  routeIncidentNumber String?
+  insuranceClaimId    String?
+  isWarranty          Boolean         @default(false)
+  isRepeatRepair      Boolean         @default(false)
+  repeatRepairRefId   String?
+
+  // fraud intelligence
+  fraudScore          Int             @default(0)
+  fraudFlags          String[]        @default([])
+  requiresOwnerApproval Boolean       @default(false)
+  ownerApproved       Boolean         @default(false)
+
+  // photo evidence (Google Drive URLs)
+  photosBefore        String[]        @default([])
+  photosDuring        String[]        @default([])
+  photosAfter         String[]        @default([])
+  photosWideAngle     String[]        @default([])
+  photosCloseUp       String[]        @default([])
+
+  // documents
+  invoiceUrl          String?
+  invoiceHash         String?         // for duplicate detection
+  estimate1Url        String?
+  estimate2Url        String?
+  driveFolderId       String?         // Google Drive folder ID
+
+  // relations
+  vehicleId           String
+  vehicle             Vehicle         @relation(fields: [vehicleId], references: [id])
+  shopId              String?
+  shop                RepairShop?     @relation(fields: [shopId], references: [id])
+  requestedById       String?
+  requestedBy         User?           @relation("RequestedBy", fields: [requestedById], references: [id])
+  approvedById        String?
+  approvedBy          User?           @relation("ApprovedBy", fields: [approvedById], references: [id])
+  driverId            String?
+
+  approvalEvents      ApprovalEvent[]
+  fraudEvents         FraudEvent[]
+  partsOrders         PartsOrder[]
+  notifications       Notification[]
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@map("repairs")
+}
+
+// Immutable audit trail — no updates, only inserts
+model ApprovalEvent {
+  id            String        @id @default(cuid())
+  repairId      String
+  repair        Repair        @relation(fields: [repairId], references: [id])
+  action        String        // approved | rejected | escalated | flagged | requested_info
+  actorId       String
+  actor         User          @relation(fields: [actorId], references: [id])
+  approvalTier  ApprovalTier?
+  reason        String?
+  notes         String?
+  createdAt     DateTime      @default(now())
+
+  @@map("approval_events")
+}
+
+model PartsOrder {
+  id                  String            @id @default(cuid())
+  orderNumber         String            @unique
+  partName            String
+  partNumber          String?
+  quantity            Int               @default(1)
+  unitCost            Float
+  totalCost           Float
+  vendor              String
+  amazonOrderNumber   String?
+  dateOrdered         DateTime
+  dateDelivered       DateTime?
+  installedBy         String?
+  installedDate       DateTime?
+  returnStatus        PartReturnStatus  @default(NA)
+  warrantyStatus      String?
+  invoiceUrl          String?
+  isDuplicateFlag     Boolean           @default(false)
+  duplicateRefId      String?
+  notes               String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  vehicleId           String
+  vehicle             Vehicle           @relation(fields: [vehicleId], references: [id])
+  repairId            String?
+  repair              Repair?           @relation(fields: [repairId], references: [id])
+  orderedById         String?
+  orderedBy           User?             @relation("OrderedBy", fields: [orderedById], references: [id])
+  approvedById        String?
+  approvedBy          User?             @relation("ApprovedBy", fields: [approvedById], references: [id])
+
+  @@map("parts_orders")
+}
+
+model FraudEvent {
+  id            String        @id @default(cuid())
+  entityType    String        // repair | shop | parts | vehicle
+  entityId      String
+  flagType      String
+  severity      FraudSeverity
+  description   String
+  riskScore     Int
+  isActive      Boolean       @default(true)
+  detectedAt    DateTime      @default(now())
+  resolvedAt    DateTime?
+  resolvedById  String?
+  resolvedBy    User?         @relation("ResolvedBy", fields: [resolvedById], references: [id])
+  resolutionNotes String?
+
+  repairId      String?
+  repair        Repair?       @relation(fields: [repairId], references: [id])
+
+  @@map("fraud_events")
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  type        String
+  title       String
+  body        String
+  entityId    String?
+  entityType  String?
+  channel     String    @default("in_app") // email | in_app | both
+  sentAt      DateTime  @default(now())
+  readAt      DateTime?
+  isResolved  Boolean   @default(false)
+
+  repairId    String?
+  repair      Repair?   @relation(fields: [repairId], references: [id])
+
+  @@map("notifications")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}

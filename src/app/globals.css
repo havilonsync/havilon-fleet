@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --sidebar-width: 240px;
+  }
+  
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white border border-gray-200 rounded-xl;
+  }
+
+  .stat-card {
+    @apply bg-white border border-gray-200 rounded-xl p-4;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium 
+           rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium 
+           border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 text-sm font-medium 
+           border border-red-200 rounded-lg hover:bg-red-100 transition-colors;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-red    { @apply bg-red-100 text-red-700 border border-red-200; }
+  .badge-amber  { @apply bg-amber-100 text-amber-700 border border-amber-200; }
+  .badge-green  { @apply bg-green-100 text-green-700 border border-green-200; }
+  .badge-blue   { @apply bg-blue-100 text-blue-700 border border-blue-200; }
+  .badge-gray   { @apply bg-gray-100 text-gray-600 border border-gray-200; }
+
+  .status-pending   { @apply badge badge-amber; }
+  .status-approved  { @apply badge badge-green; }
+  .status-disputed  { @apply badge badge-red; }
+  .status-progress  { @apply badge badge-blue; }
+  .status-completed { @apply badge bg-gray-100 text-gray-600; }
+  .status-rejected  { @apply badge bg-red-50 text-red-500; }
+
+  .table-header {
+    @apply text-xs font-medium text-gray-500 uppercase tracking-wide px-4 py-3 border-b border-gray-100 bg-gray-50;
+  }
+
+  .table-cell {
+    @apply px-4 py-3 text-sm text-gray-900 border-b border-gray-50;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 
+           hover:text-gray-900 transition-colors cursor-pointer;
+  }
+
+  .nav-item-active {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm bg-blue-50 text-blue-700 
+           font-medium cursor-pointer;
+  }
+
+  .fraud-score-high   { @apply text-red-600 font-semibold; }
+  .fraud-score-medium { @apply text-amber-600 font-semibold; }
+  .fraud-score-low    { @apply text-green-600 font-semibold; }
+
+  .section-title {
+    @apply text-sm font-semibold text-gray-900;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  .input {
+    @apply block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm 
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  }
+
+  .select {
+    @apply block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white
+           focus:outline-none focus:ring-2 focus:ring-blue-500;
+  }
+}
+
+/* Fraud risk bar */
+.risk-bar {
+  width: 100%;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.risk-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.5s ease;
+}
+.risk-fill-low    { background: #10b981; }
+.risk-fill-medium { background: #f59e0b; }
+.risk-fill-high   { background: #ef4444; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }

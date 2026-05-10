@@ -1,0 +1,203 @@
+// ─── ADD THESE MODELS TO YOUR EXISTING prisma/schema.prisma ─────────────────
+// Paste these at the bottom of your existing schema.prisma file
+
+enum DAStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model DA {
+  id              String    @id @default(cuid())
+  name            String
+  email           String?   @unique
+  phone           String?
+  status          DAStatus  @default(ACTIVE)
+
+  // Amazon identifiers (from your DA Roster sheet)
+  adpId           String?   // ADP number (e.g., 1265)
+  badgeId         String?   // Badge ID (e.g., YDONTERR)
+  transponderId   String?   // Amazon Transponder ID (e.g., A2QSQCQ9U7KFMP)
+  amazonRouteId   String?   // Pickup route ID
+  voxerId         String?
+
+  // Personal info
+  driverLicense   String?
+  dlExpiry        DateTime?
+  dateOfBirth     DateTime?
+  zipCode         String?
+  hireDate        DateTime?
+  terminationDate DateTime?
+
+  // Off days
+  offDays         String[]  @default([])
+
+  // Emergency contact
+  emergencyName   String?
+  emergencyPhone  String?
+
+  // Uniform assignment
+  uniformPants    Boolean   @default(false)
+  uniformShorts   Boolean   @default(false)
+  uniformVest     Boolean   @default(false)
+  uniformShirtSize String?
+
+  // Equipment
+  phoneImei       String?
+  phoneAssigned   Boolean   @default(false)
+  equipmentNotes  String?
+
+  // Flags
+  hasHealthInsurance Boolean @default(false)
+  gasPin          String?
+  notes           String?
+
+  // Relations
+  scorecards      DAScorecard[]
+  alerts          DAAlert[]
+  routeAssignments RouteAssignment[]
+  disciplineLog   DisciplineRecord[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("das")
+}
+
+model DAScorecard {
+  id              String    @id @default(cuid())
+  daId            String
+  da              DA        @relation(fields: [daId], references: [id])
+  week            String    // "2026-W20"
+  amazonDaId      String?   // Amazon's DA ID for cross-reference
+
+  // Scores from Amazon API
+  deliveryScore   Float     @default(0)
+  qualityScore    Float     @default(0)
+  safetyScore     Float     @default(0)
+  dnrRate         Float     @default(0)  // Did Not Return %
+  dsbRate         Float     @default(0)  // Delivered Successfully %
+  standing        String    @default("GOOD")  // FANTASTIC_PLUS | FANTASTIC | GREAT | GOOD | FAIR | POOR
+
+  syncedAt        DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+
+  @@unique([daId, week])
+  @@map("da_scorecards")
+}
+
+model DAAlert {
+  id          String        @id @default(cuid())
+  daId        String
+  da          DA            @relation(fields: [daId], references: [id])
+  week        String
+  type        String        // LOW_PERFORMANCE | SAFETY | QUALITY | DL_EXPIRY | EQUIPMENT
+  severity    AlertSeverity @default(WARNING)
+  details     String
+  isResolved  Boolean       @default(false)
+  resolvedAt  DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@unique([daId, week, type])
+  @@map("da_alerts")
+}
+
+model RouteAssignment {
+  id            String    @id @default(cuid())
+  date          String    // "2026-05-10"
+  routeCode     String
+  routeType     String    @default("BASE")  // BASE | SURGE | RESCUE
+
+  // Linked records
+  daId          String?
+  da            DA?       @relation(fields: [daId], references: [id])
+  vehicleId     String?
+  vehicle       Vehicle?  @relation(fields: [vehicleId], references: [id])
+
+  // Route details (from Amazon or manual entry)
+  stopCount     Int?
+  packageVolume Int?
+  destination   String?
+  stageLocation String?
+  departureTime String?
+  status        String    @default("SCHEDULED")
+  amazonDaId    String?   // Raw Amazon DA ID before matching
+
+  // Phone assigned for this route
+  phoneNumber   String?
+  phoneImei     String?
+
+  syncedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([date, routeCode])
+  @@map("route_assignments")
+}
+
+model DisciplineRecord {
+  id          String    @id @default(cuid())
+  daId        String
+  da          DA        @relation(fields: [daId], references: [id])
+  date        DateTime
+  type        String    // VERBAL_WARNING | WRITTEN_WARNING | FINAL_WARNING | TERMINATION
+  description String
+  issuedBy    String
+  documentUrl String?
+  createdAt   DateTime  @default(now())
+
+  @@map("discipline_records")
+}
+
+model PhoneAssignment {
+  id          String    @id @default(cuid())
+  date        String    // "2026-05-10"
+  phoneImei   String
+  phoneNumber String?
+  daName      String
+  daId        String?
+  routeCode   String?
+  condition   String?   // GOOD | DAMAGED | MISSING
+  notes       String?
+  returnedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@map("phone_assignments")
+}
+
+model SyncLog {
+  id      String    @id @default(cuid())
+  type    String    // MORNING_ROUTES | NIGHTLY_SCORECARDS | WEEKLY_HISTORY | ROSTER_AUDIT
+  status  String    // SUCCESS | FAILED
+  result  Json?
+  runAt   DateTime  @default(now())
+
+  @@map("sync_logs")
+}
+
+model Incident {
+  id              String    @id @default(cuid())
+  incidentNumber  String    @unique
+  date            DateTime
+  type            String    // AUTO_COLLISION | DAMAGE | WORKERS_COMP | PACKAGE | OTHER
+  description     String
+  daId            String?
+  vehicleId       String?
+  reportedBy      String?
+  policeReport    String?
+  insuranceClaim  String?
+  status          String    @default("OPEN")
+  documentUrls    String[]  @default([])
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("incidents")
+}
