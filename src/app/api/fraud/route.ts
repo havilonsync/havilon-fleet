@@ -8,7 +8,7 @@ const prisma = new PrismaClient()
 
 // GET /api/fraud — dashboard summary + active flags
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/fraud/[id]/resolve
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const url = new URL(req.url)

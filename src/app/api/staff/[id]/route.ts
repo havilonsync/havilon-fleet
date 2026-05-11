@@ -9,7 +9,7 @@ type Params = { params: { id: string } }
 
 // PATCH /api/staff/[id] — update role or deactivate
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if ((session.user as any).role !== 'OWNER') {
     return NextResponse.json({ error: 'Owner access required' }, { status: 403 })
@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 // DELETE /api/staff/[id] — deactivate (we never hard-delete for audit integrity)
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if ((session.user as any).role !== 'OWNER') {
     return NextResponse.json({ error: 'Owner access required' }, { status: 403 })

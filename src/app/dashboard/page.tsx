@@ -8,7 +8,7 @@ import { DashboardClient } from './DashboardClient'
 const prisma = new PrismaClient()
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session) redirect('/auth/signin')
 
   const since30 = subDays(new Date(), 30)

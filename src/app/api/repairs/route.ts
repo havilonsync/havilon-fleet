@@ -26,7 +26,7 @@ const CreateRepairSchema = z.object({
 
 // GET /api/repairs — list with filters
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/repairs — create new repair
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const role = (session.user as any).role

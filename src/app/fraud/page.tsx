@@ -12,7 +12,7 @@ function formatMoney(n: number) {
 }
 
 export default async function FraudPage() {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session) redirect('/auth/signin')
 
   const [fraudEvents, shops] = await Promise.all([

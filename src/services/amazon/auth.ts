@@ -14,7 +14,10 @@
  *   AMAZON_STATION_CODE=DDF4
  */
 
-import puppeteer, { Browser, Page } from 'puppeteer'
+// Puppeteer loaded dynamically to avoid build-time errors
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Browser = any
+type Page = any
 
 const AMAZON_BASE = 'https://logistics.amazon.com'
 const LOGIN_URL = `${AMAZON_BASE}/`
@@ -39,6 +42,7 @@ export async function getAmazonSession(): Promise<AmazonSession> {
 
   console.log('🔐 Authenticating with Amazon DSP portal...')
 
+  const puppeteer = await import('puppeteer').then(m => m.default)
   const browser = await puppeteer.launch({
     headless: true,
     args: [

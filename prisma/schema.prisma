@@ -67,19 +67,6 @@ enum PartReturnStatus {
   KEPT
 }
 
-enum DAStatus {
-  ACTIVE
-  INACTIVE
-  ON_LEAVE
-  TERMINATED
-}
-
-enum AlertSeverity {
-  INFO
-  WARNING
-  CRITICAL
-}
-
 // ─── TABLES ──────────────────────────────────────────────────────────────────
 
 model User {
@@ -364,59 +351,57 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
+// ─── DA ROSTER & AMAZON SYNC TABLES ──────────────────────────────────────────
+
+enum DAStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
 model DA {
-  id                String      @id @default(cuid())
-  name              String
-  email             String?     @unique
-  phone             String?
-  status            DAStatus    @default(ACTIVE)
-
-  // Amazon identifiers (from your DA roster)
-  adpId             String?
-  badgeId           String?
-  transponderId     String?
-  amazonRouteId     String?
-  voxerId           String?
-
-  // Personal info
-  driverLicense     String?
-  dlExpiry          DateTime?
-  dateOfBirth       DateTime?
-  zipCode           String?
-  hireDate          DateTime?
-  terminationDate   DateTime?
-
-  // Off days
-  offDays           String[]    @default([])
-
-  // Emergency contact
-  emergencyName     String?
-  emergencyPhone    String?
-
-  // Uniform assignment
-  uniformPants      Boolean     @default(false)
-  uniformShorts     Boolean     @default(false)
-  uniformVest       Boolean     @default(false)
-  uniformShirtSize  String?
-
-  // Equipment
-  phoneImei         String?
-  phoneAssigned     Boolean     @default(false)
-  equipmentNotes    String?
-
-  // Flags
-  hasHealthInsurance Boolean    @default(false)
-  gasPin            String?
-  notes             String?
-
-  // Relations
-  scorecards        DAScorecard[]
-  alerts            DAAlert[]
-  routeAssignments  RouteAssignment[]
-  disciplineLog     DisciplineRecord[]
-
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  id              String    @id @default(cuid())
+  name            String
+  email           String?   @unique
+  phone           String?
+  status          DAStatus  @default(ACTIVE)
+  adpId           String?
+  badgeId         String?
+  transponderId   String?
+  amazonRouteId   String?
+  voxerId         String?
+  driverLicense   String?
+  dlExpiry        DateTime?
+  dateOfBirth     DateTime?
+  zipCode         String?
+  hireDate        DateTime?
+  terminationDate DateTime?
+  offDays         String[]  @default([])
+  emergencyName   String?
+  emergencyPhone  String?
+  uniformPants    Boolean   @default(false)
+  uniformShorts   Boolean   @default(false)
+  uniformVest     Boolean   @default(false)
+  uniformShirtSize String?
+  phoneImei       String?
+  phoneAssigned   Boolean   @default(false)
+  equipmentNotes  String?
+  hasHealthInsurance Boolean @default(false)
+  gasPin          String?
+  notes           String?
+  scorecards      DAScorecard[]
+  alerts          DAAlert[]
+  routeAssignments RouteAssignment[]
+  disciplineLog   DisciplineRecord[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@map("das")
 }
@@ -427,15 +412,12 @@ model DAScorecard {
   da              DA        @relation(fields: [daId], references: [id])
   week            String
   amazonDaId      String?
-
-  // Scores from Amazon API
   deliveryScore   Float     @default(0)
   qualityScore    Float     @default(0)
   safetyScore     Float     @default(0)
   dnrRate         Float     @default(0)
   dsbRate         Float     @default(0)
   standing        String    @default("GOOD")
-
   syncedAt        DateTime  @default(now())
   createdAt       DateTime  @default(now())
 
@@ -464,14 +446,10 @@ model RouteAssignment {
   date          String
   routeCode     String
   routeType     String    @default("BASE")
-
-  // Linked records
   daId          String?
   da            DA?       @relation(fields: [daId], references: [id])
   vehicleId     String?
   vehicle       Vehicle?  @relation(fields: [vehicleId], references: [id])
-
-  // Route details (from Amazon or manual entry)
   stopCount     Int?
   packageVolume Int?
   destination   String?
@@ -479,11 +457,8 @@ model RouteAssignment {
   departureTime String?
   status        String    @default("SCHEDULED")
   amazonDaId    String?
-
-  // Phone assigned for this route
   phoneNumber   String?
   phoneImei     String?
-
   syncedAt      DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -550,4 +525,65 @@ model Incident {
   updatedAt       DateTime  @updatedAt
 
   @@map("incidents")
+}
+
+// ─── EMPLOYEE RECOGNITION ─────────────────────────────────────────────────────
+
+model EmployeeAward {
+  id              String    @id @default(cuid())
+  type            String    // WEEK | MONTH | QUARTER | YEAR
+  period          String    // "2026-W20" | "May 2026" | "Q2 2026" | "2026"
+  winnerId        String
+  winnerName      String
+  winnerScore     Float
+  runnerUpName    String?
+  runnerUpScore   Float?
+  thirdPlaceName  String?
+  thirdPlaceScore Float?
+  scoreBreakdown  Json?     // Top 10 full scores for that period
+  calculatedAt    DateTime  @default(now())
+  announcedAt     DateTime?
+
+  @@unique([type, period])
+  @@map("employee_awards")
+}
+
+// ─── OVERTIME & PERFORMANCE RISK TABLES ──────────────────────────────────────
+
+model DAHoursLog {
+  id                    String    @id @default(cuid())
+  daId                  String
+  week                  String
+  weeklyHoursWorked     Float     @default(0)
+  weeklyHoursScheduled  Float     @default(0)
+  projectedWeeklyHours  Float     @default(0)
+  overtimeHours         Float     @default(0)
+  status                String    @default("NORMAL") // NORMAL | WARNING | OVERTIME | CRITICAL
+  dailyHours            Json      @default("{}")
+  lastUpdated           DateTime  @default(now())
+
+  @@unique([daId, week])
+  @@map("da_hours_log")
+}
+
+model DAPerformanceFlag {
+  id                    String    @id @default(cuid())
+  daId                  String    @unique
+  riskLevel             String    // WATCH | WARNING | NOT_RECOMMENDED | FURLOUGH
+  consecutivePoorWeeks  Int       @default(0)
+  avgDeliveryScore      Float     @default(0)
+  avgQualityScore       Float     @default(0)
+  avgSafetyScore        Float     @default(0)
+  trend                 String    @default("FLAT") // IMPROVING | DECLINING | FLAT
+  trendDelta            Float     @default(0)
+  primaryConcern        String
+  recommendation        String
+  safetyRisk            Boolean   @default(false)
+  isResolved            Boolean   @default(false)
+  resolvedAt            DateTime?
+  resolvedNote          String?
+  lastAssessed          DateTime  @default(now())
+  createdAt             DateTime  @default(now())
+
+  @@map("da_performance_flags")
 }

@@ -33,7 +33,7 @@ function formatStanding(s: string) {
 }
 
 export default async function ScorecardsPage() {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session) redirect('/auth/signin')
 
   const week = lastWeekStr()

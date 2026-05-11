@@ -24,7 +24,7 @@ const InviteSchema = z.object({
 
 // GET — list all staff
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if ((session.user as any).role !== 'OWNER') {
     return NextResponse.json({ error: 'Owner access required' }, { status: 403 })
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 
 // POST — invite new staff member
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if ((session.user as any).role !== 'OWNER') {
     return NextResponse.json({ error: 'Owner access required' }, { status: 403 })

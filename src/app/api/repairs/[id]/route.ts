@@ -15,7 +15,7 @@ type Params = { params: { id: string } }
 
 // GET /api/repairs/[id]
 export async function GET(_req: NextRequest, { params }: Params) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const repair = await prisma.repair.findUnique({
@@ -43,7 +43,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 // PATCH /api/repairs/[id]
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const role = (session.user as any).role
@@ -68,7 +68,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 // POST /api/repairs/[id]/approve
 export async function POST(req: NextRequest, { params }: Params) {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions) as any
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const url = new URL(req.url)
