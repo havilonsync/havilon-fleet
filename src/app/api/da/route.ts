@@ -67,11 +67,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
+  const { dlExpiry, hireDate, ...rest } = parsed.data
   const da = await prisma.dA.create({
     data: {
-      ...parsed.data,
-      dlExpiry:  parsed.data.dlExpiry  ? new Date(parsed.data.dlExpiry)  : undefined,
-      hireDate:  parsed.data.hireDate  ? new Date(parsed.data.hireDate)  : undefined,
+      name:     rest.name ?? '',
+      email:    rest.email,
+      phone:    rest.phone,
+      adpId:    rest.adpId,
+      badgeId:  rest.badgeId,
+      transponderId:    rest.transponderId,
+      driverLicense:    rest.driverLicense,
+      zipCode:          rest.zipCode,
+      offDays:          rest.offDays ?? [],
+      gasPin:           rest.gasPin,
+      uniformShirtSize: rest.uniformShirtSize,
+      notes:            rest.notes,
+      dlExpiry:  dlExpiry  ? new Date(dlExpiry)  : undefined,
+      hireDate:  hireDate  ? new Date(hireDate)  : undefined,
     },
   })
 
