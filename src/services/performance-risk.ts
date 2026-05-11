@@ -50,7 +50,7 @@ export const RISK_CONFIG = {
 
 export type RiskLevel = 'WATCH' | 'WARNING' | 'NOT_RECOMMENDED' | 'FURLOUGH'
 
-export interface DAR iskAssessment {
+export interface DARiskAssessment {
   daId: string
   daName: string
   riskLevel: RiskLevel | null
@@ -69,7 +69,7 @@ export interface DAR iskAssessment {
 
 // ─── Main Assessment Function ─────────────────────────────────────────────────
 
-export async function assessDAPerformanceRisk(daId: string): Promise<DAR iskAssessment | null> {
+export async function assessDAPerformanceRisk(daId: string): Promise<DARiskAssessment | null> {
   const da = await prisma.dA.findUnique({
     where: { id: daId },
     include: {
@@ -98,7 +98,7 @@ export async function assessDAPerformanceRisk(daId: string): Promise<DAR iskAsse
   const olderAvg     = avg(olderScores)
   const trendDelta   = recentAvg - olderAvg
 
-  const trend: DAR iskAssessment['trend'] =
+  const trend: DARiskAssessment['trend'] =
     trendDelta >= RISK_CONFIG.IMPROVEMENT_THRESHOLD  ? 'IMPROVING' :
     trendDelta <= -RISK_CONFIG.IMPROVEMENT_THRESHOLD ? 'DECLINING'  : 'FLAT'
 
@@ -197,10 +197,10 @@ export async function assessDAPerformanceRisk(daId: string): Promise<DAR iskAsse
 // ─── Run assessment for all active DAs ───────────────────────────────────────
 
 export async function runFullRiskAssessment(): Promise<{
-  furlough:        DAR iskAssessment[]
-  notRecommended:  DAR iskAssessment[]
-  warning:         DAR iskAssessment[]
-  watch:           DAR iskAssessment[]
+  furlough:        DARiskAssessment[]
+  notRecommended:  DARiskAssessment[]
+  warning:         DARiskAssessment[]
+  watch:           DARiskAssessment[]
 }> {
   console.log('🔍 Running full DA performance risk assessment...')
 
@@ -210,10 +210,10 @@ export async function runFullRiskAssessment(): Promise<{
   })
 
   const results = {
-    furlough:       [] as DAR iskAssessment[],
-    notRecommended: [] as DAR iskAssessment[],
-    warning:        [] as DAR iskAssessment[],
-    watch:          [] as DAR iskAssessment[],
+    furlough:       [] as DARiskAssessment[],
+    notRecommended: [] as DARiskAssessment[],
+    warning:        [] as DARiskAssessment[],
+    watch:          [] as DARiskAssessment[],
   }
 
   for (const da of activeDAs) {
@@ -222,7 +222,7 @@ export async function runFullRiskAssessment(): Promise<{
 
     // Save to database
     await prisma.dAPerformanceFlag.upsert({
-      where: { daId: { daId: da.id } },
+      where: { daId: da.id },
       update: {
         riskLevel:            assessment.riskLevel!,
         consecutivePoorWeeks: assessment.consecutivePoorWeeks,
@@ -278,7 +278,7 @@ export async function runFullRiskAssessment(): Promise<{
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 
-async function notifyOwnerOfRisk(furlough: DAR iskAssessment[], notRecommended: DAR iskAssessment[]) {
+async function notifyOwnerOfRisk(furlough: DARiskAssessment[], notRecommended: DARiskAssessment[]) {
   const owners = await prisma.user.findMany({
     where: { role: 'OWNER', isActive: true },
   })
@@ -305,7 +305,7 @@ async function notifyOwnerOfRisk(furlough: DAR iskAssessment[], notRecommended: 
   }
 }
 
-async function notifyOpsOfFlags(flags: DAR iskAssessment[]) {
+async function notifyOpsOfFlags(flags: DARiskAssessment[]) {
   const opsMgrs = await prisma.user.findMany({
     where: { role: 'OPS_MANAGER', isActive: true },
   })

@@ -39,6 +39,7 @@ export default async function PerformanceRiskPage() {
   const userRole = (session.user as any).role
   if (!['OWNER', 'OPS_MANAGER'].includes(userRole)) redirect('/dashboard')
 
+  // @ts-ignore - models available after prisma generate
   const [flags, overtimeAlerts, hoursThisWeek] = await Promise.all([
     prisma.dAPerformanceFlag.findMany({
       where: { isResolved: false },

@@ -1,13 +1,10 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 import { SessionProvider } from '@/components/layout/SessionProvider'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Havilon Fleet Portal',
@@ -19,7 +16,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body>
         <SessionProvider session={session}>
           {session ? (
             <div className="flex h-screen bg-gray-50 overflow-hidden">

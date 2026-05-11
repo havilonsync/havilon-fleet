@@ -38,6 +38,7 @@ export default async function ScorecardsPage() {
 
   const week = lastWeekStr()
 
+  // @ts-ignore - models available after prisma generate
   const [scorecards, lastSync, weeklyAlerts] = await Promise.all([
     prisma.dAScorecard.findMany({
       where: { week },

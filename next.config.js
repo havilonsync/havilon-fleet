@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverActions: { allowedOrigins: ['localhost:3000'] }
+    serverActions: { allowedOrigins: ['localhost:3000'] },
+    serverComponentsExternalPackages: ['puppeteer'],
   },
-  // Exclude puppeteer from client bundle — server only
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -16,8 +16,6 @@ const nextConfig = {
     }
     return config
   },
-  // Tell Vercel not to bundle puppeteer at build time
-  serverExternalPackages: ['puppeteer'],
 }
 
 module.exports = nextConfig
