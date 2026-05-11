@@ -74,6 +74,8 @@ model User {
   email         String    @unique
   name          String
   role          UserRole  @default(AUDIT)
+  image         String?
+  emailVerified DateTime?
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   lastLogin     DateTime?
