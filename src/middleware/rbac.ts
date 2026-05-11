@@ -5,6 +5,7 @@
 
 import { UserRole } from '@prisma/client'
 import { getServerSession } from 'next-auth'
+import type { Session } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
 // ─── Permission Matrix ─────────────────────────────────────────────────────
@@ -65,7 +66,7 @@ export async function requirePermission(
   permission: Permission,
   authOptions: any
 ): Promise<{ session: any } | NextResponse> {
-  const session = await getServerSession(authOptions)
+  const session = (await getServerSession(authOptions)) as Session | null
 
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
