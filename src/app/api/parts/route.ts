@@ -66,13 +66,23 @@ export async function POST(req: NextRequest) {
   const count = await prisma.partsOrder.count()
   const orderNumber = `PO-${String(400 + count + 1).padStart(3, '0')}`
 
+  const { dateOrdered, dateDelivered, vehicleId, repairId, ...rest } = parsed.data
   const order = await prisma.partsOrder.create({
     data: {
-      ...parsed.data,
       orderNumber,
-      orderedById: session.user.id,
-      dateOrdered:   new Date(parsed.data.dateOrdered),
-      dateDelivered: parsed.data.dateDelivered ? new Date(parsed.data.dateDelivered) : undefined,
+      orderedById:       session.user.id,
+      vehicleId:         vehicleId ?? '',
+      partName:          rest.partName,
+      partNumber:        rest.partNumber,
+      quantity:          rest.quantity ?? 1,
+      unitCost:          rest.unitCost,
+      totalCost:         rest.totalCost,
+      vendor:            rest.vendor,
+      amazonOrderNumber: rest.amazonOrderNumber,
+      notes:             rest.notes,
+      repairId:          repairId,
+      dateOrdered:       new Date(dateOrdered),
+      dateDelivered:     dateDelivered ? new Date(dateDelivered) : undefined,
     },
   })
 

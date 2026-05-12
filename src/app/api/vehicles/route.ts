@@ -64,11 +64,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
+  const { acquisitionDate, driverId, ...rest } = parsed.data
   const vehicle = await prisma.vehicle.create({
     data: {
-      ...parsed.data,
-      odometerCurrent: parsed.data.odometerCurrent ?? 0,
-      acquisitionDate: parsed.data.acquisitionDate ? new Date(parsed.data.acquisitionDate) : undefined,
+      vin:             rest.vin,
+      vehicleNumber:   rest.vehicleNumber,
+      licensePlate:    rest.licensePlate,
+      make:            rest.make,
+      model:           rest.model,
+      year:            rest.year,
+      odometerCurrent: rest.odometerCurrent ?? 0,
+      estimatedValue:  rest.estimatedValue,
+      notes:           rest.notes,
+      driverId:        driverId,
+      acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : undefined,
     },
   })
 
