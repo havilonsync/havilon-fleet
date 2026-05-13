@@ -11,10 +11,9 @@
  */
 
 import { callAmazonAPI } from './auth'
-import { PrismaClient } from '@prisma/client'
 import { format, startOfWeek, addDays } from 'date-fns'
 
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 const DSP_CODE = process.env.AMAZON_DSP_CODE ?? 'HAVL'
 const STATION_CODE = process.env.AMAZON_STATION_CODE ?? 'DDF4'
 

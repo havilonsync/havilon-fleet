@@ -1,11 +1,10 @@
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Wrench, Plus } from 'lucide-react'
 
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 const STATUS_STYLES: Record<string, string> = {
   PENDING_REVIEW:    'status-pending',

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { evaluateRepairFraud } from '@/services/fraud-engine'
@@ -9,7 +8,7 @@ import { generateInvoiceHash } from '@/services/fraud-engine'
 import { hasPermission } from '@/middleware/rbac'
 import { z } from 'zod'
 
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 type Params = { params: { id: string } }
 

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { z } from 'zod'
 
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 const CreateShopSchema = z.object({
   name:          z.string().min(1),

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getISOWeek, getYear, subWeeks } from 'date-fns'
 
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 function weekStr(date: Date) {
   return `${getYear(date)}-W${String(getISOWeek(date)).padStart(2, '0')}`

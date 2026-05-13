@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient, FraudSeverity } from '@prisma/client'
+import { FraudSeverity  } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { runNightlyFraudScan, recalculateShopRiskScore } from '@/services/fraud-engine'
 
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 // GET /api/fraud — dashboard summary + active flags
 export async function GET(req: NextRequest) {

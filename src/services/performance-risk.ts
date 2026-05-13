@@ -13,10 +13,9 @@
  * Runs every Sunday after scorecard sync.
  */
 
-import { PrismaClient } from '@prisma/client'
 import { subWeeks, getISOWeek, getYear } from 'date-fns'
 
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 // ─── Configurable Risk Thresholds ────────────────────────────────────────────
 

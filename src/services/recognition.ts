@@ -15,10 +15,9 @@
  *   Final Score = (performance * 0.5) + (attendance * 0.3) + (reliability * 0.2)
  */
 
-import { PrismaClient } from '@prisma/client'
 import { getISOWeek, getYear, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, format, subWeeks } from 'date-fns'
 
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 // ─── Scoring Weights ──────────────────────────────────────────────────────────
 

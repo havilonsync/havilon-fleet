@@ -1,10 +1,9 @@
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { AlertTriangle, ShieldAlert, TrendingDown, TrendingUp, Minus, Eye } from 'lucide-react'
 
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 const RISK_COLORS: Record<string, string> = {
   FURLOUGH:        'red',

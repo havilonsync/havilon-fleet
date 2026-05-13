@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { z } from 'zod'
 import { evaluatePartsFraud } from '@/services/fraud-engine'
 
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 const CreatePartsSchema = z.object({
   vehicleId:         z.string(),

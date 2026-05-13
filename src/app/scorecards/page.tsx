@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
@@ -6,7 +5,7 @@ import { getISOWeek, getYear, subWeeks } from 'date-fns'
 import Link from 'next/link'
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, Star } from 'lucide-react'
 
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 function currentWeekStr() {
   const now = new Date()

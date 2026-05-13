@@ -1,11 +1,10 @@
-import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CheckSquare, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
 
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)

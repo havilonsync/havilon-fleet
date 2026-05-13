@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient, RepairStatus, RepairCategory } from '@prisma/client'
+import { RepairStatus, RepairCategory  } from '@prisma/client'
 import { z } from 'zod'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -8,7 +8,7 @@ import { determineTier } from '@/services/approval-engine'
 import { createRepairFolder } from '@/services/google-workspace'
 import { hasPermission } from '@/middleware/rbac'
 
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 const CreateRepairSchema = z.object({
   vehicleId: z.string(),
