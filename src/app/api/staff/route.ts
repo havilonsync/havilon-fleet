@@ -8,13 +8,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { UserRole  } from '@prisma/client'
+import { UserRole } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { z } from 'zod'
 import { sendStaffInviteEmail } from '@/services/google-workspace'
-
 import prisma from '@/lib/prisma'
+
 
 const InviteSchema = z.object({
   email: z.string().email(),

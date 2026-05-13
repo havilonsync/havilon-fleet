@@ -401,6 +401,8 @@ model DA {
   alerts          DAAlert[]
   routeAssignments RouteAssignment[]
   disciplineLog   DisciplineRecord[]
+  timeOffRequests TimeOffRequest[]
+  documents       EmployeeDocument[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -587,4 +589,272 @@ model DAPerformanceFlag {
   createdAt             DateTime  @default(now())
 
   @@map("da_performance_flags")
+}
+
+// ─── TIME OFF & LEAVE MANAGEMENT ─────────────────────────────────────────────
+
+enum TimeOffType {
+  VACATION
+  PERSONAL
+  MEDICAL_EMERGENCY
+  BEREAVEMENT
+  OTHER
+}
+
+enum TimeOffStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CANCELLED
+  PENDING_MEDICAL_CLEARANCE  // Approved but needs Dr note before returning
+}
+
+model TimeOffRequest {
+  id              String        @id @default(cuid())
+  requestNumber   String        @unique
+  daId            String
+  da              DA            @relation(fields: [daId], references: [id])
+
+  type            TimeOffType
+  status          TimeOffStatus @default(PENDING)
+
+  startDate       DateTime
+  endDate         DateTime
+  totalDays       Int
+
+  reason          String?
+  isEmergency     Boolean       @default(false)
+
+  // Medical emergency fields
+  requiresDrNote  Boolean       @default(false)
+  drNoteReceived  Boolean       @default(false)
+  drNoteUrl       String?       // Google Drive link
+  drNoteReceivedAt DateTime?
+  returnToWorkCleared Boolean   @default(false)
+
+  // Review
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  reviewNotes     String?
+
+  // Notifications
+  submittedAt     DateTime      @default(now())
+  notifiedAt      DateTime?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("time_off_requests")
+}
+
+// ─── ANONYMOUS TIPS ───────────────────────────────────────────────────────────
+
+model AnonymousTip {
+  id          String   @id @default(cuid())
+  tipNumber   String   @unique
+  category    String   // SAFETY | CONDUCT | OPERATIONS | FRAUD | OTHER
+  message     String
+  isRead      Boolean  @default(false)
+  isActedOn   Boolean  @default(false)
+  actionNotes String?
+  createdAt   DateTime @default(now())
+
+  @@map("anonymous_tips")
+}
+
+// ─── EMPLOYEE SENTIMENT SURVEYS ───────────────────────────────────────────────
+
+model SentimentSurvey {
+  id          String           @id @default(cuid())
+  title       String
+  period      String           // e.g. "May 2026"
+  isActive    Boolean          @default(true)
+  closedAt    DateTime?
+  responses   SurveyResponse[]
+  createdAt   DateTime         @default(now())
+
+  @@map("sentiment_surveys")
+}
+
+model SurveyResponse {
+  id        String          @id @default(cuid())
+  surveyId  String
+  survey    SentimentSurvey @relation(fields: [surveyId], references: [id])
+
+  // Scores 1-5 for each dimension
+  overallSatisfaction  Int
+  managementRating     Int
+  workloadRating       Int
+  safetyRating         Int
+  communicationRating  Int
+  wouldRecommend       Boolean
+  openFeedback         String?
+
+  // Anonymous — no DA ID stored
+  submittedAt DateTime @default(now())
+
+  @@map("survey_responses")
+}
+
+// ─── DOCUMENT SIGNING TRACKER ────────────────────────────────────────────────
+
+model EmployeeDocument {
+  id           String    @id @default(cuid())
+  daId         String
+  da           DA        @relation(fields: [daId], references: [id])
+  docType      String    // BACKGROUND_CHECK | AMAZON_CONSENT | DRUG_TEST | OFFER_LETTER | HANDBOOK
+  signed       Boolean   @default(false)
+  signedAt     DateTime?
+  documentUrl  String?
+  notes        String?
+  createdAt    DateTime  @default(now())
+
+  @@unique([daId, docType])
+  @@map("employee_documents")
+}
+
+// ─── INSURANCE REFERRAL ───────────────────────────────────────────────────────
+
+model InsuranceReferral {
+  id              String   @id @default(cuid())
+  referralNumber  String   @unique
+
+  // Who is asking
+  daId            String?
+  daName          String
+  email           String
+  phone           String?
+
+  // What they need quoted
+  insuranceTypes  String[] // AUTO | LIFE | HEALTH | RENTERS | HOME | UMBRELLA
+
+  // Auto details
+  vehicleVin      String?
+  vehicleYear     String?
+  vehicleMake     String?
+  vehicleModel    String?
+  currentCarrier  String?
+  currentRate     String?
+
+  // Other details
+  additionalNotes String?
+  referralCode    String?            // The code used to refer
+  referralCodeId  String?
+  codeRef         ReferralCode? @relation("ReferralCodeToReferral", fields: [referralCodeId], references: [id])
+
+  // Status
+  bonusAmount     Float    @default(0)
+  bonusEligibleAt DateTime?  // 30 days after bind date
+  bonusPaid       Boolean  @default(false)
+  bindDate        DateTime?
+  status          String   @default("NEW") // NEW | QUOTED | CONVERTED | DECLINED
+  quotedAt        DateTime?
+  quotedRate      String?
+  agentNotes      String?
+
+  createdAt       DateTime @default(now())
+
+  @@map("insurance_referrals")
+}
+
+// ─── INSURANCE REFERRAL PROGRAM ───────────────────────────────────────────────
+
+model ReferralCode {
+  id          String   @id @default(cuid())
+  code        String   @unique   // e.g. "MARCUS-X7K2"
+  userId      String   @unique   // Staff or DA user ID
+  daId        String?            // If a DA
+  name        String             // Display name
+  isActive    Boolean  @default(true)
+  totalEarned Float    @default(0)
+  totalPaid   Float    @default(0)
+  balance     Float    @default(0)
+  referrals   InsuranceReferral[] @relation("ReferralCodeToReferral")
+  payouts     ReferralPayout[]
+  createdAt   DateTime @default(now())
+
+  @@map("referral_codes")
+}
+
+model ReferralPayout {
+  id             String       @id @default(cuid())
+  referralCodeId String
+  referralCode   ReferralCode @relation(fields: [referralCodeId], references: [id])
+  amount         Float
+  status         String       @default("REQUESTED") // REQUESTED | APPROVED | PAID | DENIED
+  requestedAt    DateTime     @default(now())
+  processedAt    DateTime?
+  processedBy    String?
+  paymentMethod  String?
+  notes          String?
+
+  @@map("referral_payouts")
+}
+
+// ─── INSURANCE REFERRAL PROGRAM ───────────────────────────────────────────────
+
+model ReferralCode {
+  id          String       @id @default(cuid())
+  code        String       @unique  // e.g. TERRELL-X4K9
+  userId      String       @unique
+  user        User         @relation(fields: [userId], references: [id])
+  isActive    Boolean      @default(true)
+  totalEarned Float        @default(0)
+  totalPaid   Float        @default(0)
+  referrals   Referral[]
+  createdAt   DateTime     @default(now())
+
+  @@map("referral_codes")
+}
+
+model Referral {
+  id              String       @id @default(cuid())
+  referralNumber  String       @unique
+  codeId          String
+  code            ReferralCode @relation(fields: [codeId], references: [id])
+
+  // The referred person
+  refereeName     String
+  refereeEmail    String
+  refereePhone    String?
+  insuranceTypes  String[]
+
+  // Quote details
+  vehicleVin      String?
+  vehicleYear     String?
+  vehicleMake     String?
+  vehicleModel    String?
+  currentCarrier  String?
+  currentRate     String?
+  additionalNotes String?
+
+  // Status tracking
+  status          String    @default("SUBMITTED")
+  // SUBMITTED → QUOTED → BOUND → ACTIVE (30 days) → BONUS_ELIGIBLE → PAID
+
+  quotedAt        DateTime?
+  boundAt         DateTime?
+  activeSince     DateTime?   // When policy went active
+  bonusEligibleAt DateTime?   // boundAt + 30 days
+  bonusAmount     Float?      @default(0)
+  bonusPaidAt     DateTime?
+  agentNotes      String?
+
+  createdAt       DateTime  @default(now())
+
+  @@map("referrals")
+}
+
+model PayoutRequest {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  amount      Float
+  method      String   @default("ADP") // ADP | ZELLE | CHECK
+  status      String   @default("PENDING") // PENDING | APPROVED | PAID | DENIED
+  notes       String?
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@map("payout_requests")
 }

@@ -15,8 +15,9 @@
 import { syncScorecardsToDatabase, syncScorecardsHistory } from './performance'
 import { syncDailyRoutesToDatabase, auditRosterAgainstAmazon } from './scheduling'
 import { invalidateSession } from './auth'
-
+import { sendWeeklyScorecardTexts } from '@/services/sms'
 import prisma from '@/lib/prisma'
+
 
 // ─── Sync log ────────────────────────────────────────────────────────────────
 
@@ -57,7 +58,30 @@ export async function runNightlySync() {
     )
     await logSync('NIGHTLY_SCORECARDS_PREV', lastWeekResult)
 
-    console.log('✅ Nightly sync complete')
+    // ── Send weekly scorecard texts ──────────────────────────────────────────
+  try {
+    const { getISOWeek, getYear, subWeeks } = await import('date-fns')
+    const lastWeek = subWeeks(new Date(), 1)
+    const weekStr = `${getYear(lastWeek)}-W${String(getISOWeek(lastWeek)).padStart(2, '0')}`
+
+    const scorecards = await prisma.dAScorecard.findMany({
+      where: { week: weekStr },
+      include: { da: { select: { name: true, phone: true } } },
+    })
+
+    if (scorecards.length > 0) {
+      const results = scorecards
+        .filter(sc => sc.da?.phone)
+        .map(sc => ({ da: sc.da, scorecard: sc }))
+
+      const smsResult = await sendWeeklyScorecardTexts(results)
+      console.log(`📱 SMS: ${smsResult.sent} sent, ${smsResult.skipped} skipped, ${smsResult.failed} failed`)
+    }
+  } catch (smsErr) {
+    console.error('SMS send failed (non-critical):', smsErr)
+  }
+
+  console.log('✅ Nightly sync complete')
   } catch (err: any) {
     await logSync('NIGHTLY_SCORECARDS', null, err.message)
     console.error('❌ Nightly sync failed:', err.message)

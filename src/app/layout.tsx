@@ -7,8 +7,8 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
 
 export const metadata: Metadata = {
-  title: 'Havilon Fleet Portal',
-  description: 'Fleet Repair Oversight & Accountability System',
+  title: 'Havilon LLC — Personnel & Fleet Management',
+  description: 'Personnel & Fleet Management Portal',
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

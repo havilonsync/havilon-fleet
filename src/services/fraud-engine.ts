@@ -4,11 +4,11 @@
  * All rules are configurable via FRAUD_RULES constants.
  */
 
-import { Repair, FraudSeverity, RepairCategory  } from '@prisma/client'
+import { Repair, FraudSeverity, RepairCategory } from '@prisma/client'
 import { subDays, differenceInHours } from 'date-fns'
 import crypto from 'crypto'
-
 import prisma from '@/lib/prisma'
+
 
 // ─── Configurable Thresholds ──────────────────────────────────────────────────
 export const FRAUD_RULES = {

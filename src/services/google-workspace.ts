@@ -146,7 +146,7 @@ async function sendEmail(payload: EmailPayload) {
 
   const message = [
     `To: ${payload.to}`,
-    `From: Havilon Fleet Portal <${process.env.GMAIL_FROM ?? 'alerts@havilon.com'}>`,
+    `From: Havilon LLC — Personnel & Fleet Management <${process.env.GMAIL_FROM ?? 'alerts@havilon.com'}>`,
     `Subject: ${payload.subject}`,
     `Content-Type: text/html; charset=utf-8`,
     `MIME-Version: 1.0`,
@@ -180,7 +180,7 @@ export async function sendFraudAlertEmail(params: {
     html: `
       <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
         <div style="background:#dc2626;color:white;padding:20px;border-radius:8px 8px 0 0">
-          <h1 style="margin:0;font-size:20px">⚠️ Fraud Alert — Havilon Fleet Portal</h1>
+          <h1 style="margin:0;font-size:20px">⚠️ Fraud Alert — Havilon LLC — Personnel & Fleet Management</h1>
           <p style="margin:8px 0 0;opacity:0.9">Risk Score: ${params.riskScore}/100 — Immediate action required</p>
         </div>
         <div style="border:1px solid #fca5a5;border-top:none;padding:24px;background:#fff8f8;border-radius:0 0 8px 8px">
@@ -300,7 +300,7 @@ export async function sendStaffInviteEmail(params: {
   }
   await sendEmail({
     to: params.to,
-    subject: `You've been added to the Havilon Fleet Portal`,
-    html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto"><div style="background:#1a56db;color:white;padding:20px;border-radius:8px 8px 0 0"><h1 style="margin:0;font-size:18px">Havilon Fleet Portal — Access Granted</h1></div><div style="border:1px solid #bfdbfe;border-top:none;padding:24px;border-radius:0 0 8px 8px;background:#fff"><p>Hi ${params.name},</p><p>${params.invitedBy} has added you to the <strong>Havilon LLC Fleet Portal</strong>.</p><div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:12px;margin-bottom:20px"><p style="margin:0;font-size:14px"><strong>Your role:</strong> ${roleDescriptions[params.role] ?? params.role}</p></div><p style="font-size:14px">Sign in using your Google account (<strong>${params.to}</strong>) — no password needed.</p><a href="${params.portalUrl}" style="background:#1a56db;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">Open Fleet Portal →</a></div></div>`,
+    subject: `You've been added to the Havilon LLC — Personnel & Fleet Management`,
+    html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto"><div style="background:#1a56db;color:white;padding:20px;border-radius:8px 8px 0 0"><h1 style="margin:0;font-size:18px">Havilon LLC — Personnel & Fleet Management — Access Granted</h1></div><div style="border:1px solid #bfdbfe;border-top:none;padding:24px;border-radius:0 0 8px 8px;background:#fff"><p>Hi ${params.name},</p><p>${params.invitedBy} has added you to the <strong>Havilon LLC Personnel & Fleet Management</strong>.</p><div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:12px;margin-bottom:20px"><p style="margin:0;font-size:14px"><strong>Your role:</strong> ${roleDescriptions[params.role] ?? params.role}</p></div><p style="font-size:14px">Sign in using your Google account (<strong>${params.to}</strong>) — no password needed.</p><a href="${params.portalUrl}" style="background:#1a56db;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">Open Personnel & Fleet Management →</a></div></div>`,
   })
 }

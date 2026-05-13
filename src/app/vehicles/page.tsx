@@ -3,8 +3,8 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Truck, Plus, AlertTriangle } from 'lucide-react'
-
 import prisma from '@/lib/prisma'
+
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE:          'badge-green',

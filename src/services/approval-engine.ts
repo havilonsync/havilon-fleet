@@ -3,9 +3,9 @@
  * Enforces tiered approval rules and blocks payments until conditions are met.
  */
 
-import { ApprovalTier, RepairStatus, UserRole  } from '@prisma/client'
-
+import { ApprovalTier, RepairStatus, UserRole } from '@prisma/client'
 import prisma from '@/lib/prisma'
+
 
 // ─── Tier Definitions ──────────────────────────────────────────────────────
 export const APPROVAL_TIERS = {

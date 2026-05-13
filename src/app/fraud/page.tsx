@@ -1,11 +1,11 @@
-import { FraudSeverity  } from '@prisma/client'
+import { FraudSeverity } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ShieldAlert, AlertTriangle, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react'
-
 import prisma from '@/lib/prisma'
+
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { VehicleStatus  } from '@prisma/client'
+import { VehicleStatus } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { z } from 'zod'
-
 import prisma from '@/lib/prisma'
+
 
 const CreateVehicleSchema = z.object({
   vin:             z.string().min(10),

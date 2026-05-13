@@ -3,8 +3,8 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { subDays, startOfMonth } from 'date-fns'
 import { DashboardClient } from './DashboardClient'
-
 import prisma from '@/lib/prisma'
+
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions) as any

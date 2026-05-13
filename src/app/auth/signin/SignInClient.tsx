@@ -1,6 +1,7 @@
 'use client'
 
 import { signIn } from 'next-auth/react'
+import Image from 'next/image'
 import { Truck } from 'lucide-react'
 
 export function SignInClient() {
@@ -15,9 +16,9 @@ export function SignInClient() {
           </div>
         </div>
 
-        <h1 className="text-xl font-semibold text-gray-900 mb-1">Havilon Fleet Portal</h1>
+        <h1 className="text-xl font-semibold text-gray-900 mb-1">Havilon LLC — Personnel & Fleet Management</h1>
         <p className="text-sm text-gray-500 mb-8">
-          Fleet Repair Oversight & Accountability
+          Personnel & Fleet Management Portal
         </p>
 
         <button

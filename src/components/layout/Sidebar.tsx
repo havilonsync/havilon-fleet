@@ -1,12 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import {
   LayoutDashboard, CheckSquare, ShieldAlert, Truck,
   Wrench, Package, Building2, FileText, BarChart3,
-  Star, AlertTriangle, Route, Users, LogOut
+  Star, AlertTriangle, Route, Users, LogOut, MapPin, ClipboardList, Package2, CalendarOff, Lock, BarChart3, ShieldCheck, Gift
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 
@@ -37,9 +38,21 @@ const navSections = [
   {
     label: 'People',
     items: [
+      { href: '/da',               label: 'DA Roster',        icon: Users },
+      { href: '/dispatch',         label: 'Dispatch Board',   icon: MapPin },
       { href: '/scorecards',       label: 'DA Scorecards',    icon: Star },
       { href: '/performance-risk', label: 'Performance Risk', icon: AlertTriangle },
-      { href: '/staff',            label: 'Staff Access',     icon: Users },
+      { href: '/timeoff',          label: 'Time Off',         icon: CalendarOff },
+      { href: '/tips',             label: 'Tip Line',         icon: Lock },
+      { href: '/survey',           label: 'Team Survey',      icon: BarChart3 },
+      { href: '/staff',            label: 'Staff Access',     icon: ClipboardList },
+    ],
+  },
+  {
+    label: 'Insurance',
+    items: [
+      { href: '/insurance',        label: 'Get a Quote',      icon: ShieldCheck },
+      { href: '/referral',          label: 'Refer & Earn',     icon: Gift },
     ],
   },
   {
@@ -80,7 +93,7 @@ export function Sidebar() {
           </div>
           <div>
             <div className="text-sm font-semibold text-gray-900">HAVILON LLC</div>
-            <div className="text-xs text-gray-500">Fleet Portal</div>
+            <div className="text-xs text-gray-500">Personnel & Fleet Management</div>
           </div>
         </div>
       </div>
