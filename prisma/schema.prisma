@@ -88,6 +88,8 @@ model User {
   partsOrdered      PartsOrder[]    @relation("OrderedBy")
   partsApproved     PartsOrder[]    @relation("ApprovedBy")
   fraudResolved     FraudEvent[]    @relation("ResolvedBy")
+  referralCode      ReferralCode?
+  payoutRequests    PayoutRequest[]
 
   accounts Account[]
   sessions Session[]
@@ -769,7 +771,9 @@ model ReferralCode {
   totalEarned Float    @default(0)
   totalPaid   Float    @default(0)
   balance     Float    @default(0)
+  user        User     @relation(fields: [userId], references: [id])
   referrals   InsuranceReferral[] @relation("ReferralCodeToReferral")
+  submissions Referral[]
   payouts     ReferralPayout[]
   createdAt   DateTime @default(now())
 
@@ -789,22 +793,6 @@ model ReferralPayout {
   notes          String?
 
   @@map("referral_payouts")
-}
-
-// ─── INSURANCE REFERRAL PROGRAM ───────────────────────────────────────────────
-
-model ReferralCode {
-  id          String       @id @default(cuid())
-  code        String       @unique  // e.g. TERRELL-X4K9
-  userId      String       @unique
-  user        User         @relation(fields: [userId], references: [id])
-  isActive    Boolean      @default(true)
-  totalEarned Float        @default(0)
-  totalPaid   Float        @default(0)
-  referrals   Referral[]
-  createdAt   DateTime     @default(now())
-
-  @@map("referral_codes")
 }
 
 model Referral {

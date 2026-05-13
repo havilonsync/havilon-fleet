@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma *)",
+      "Bash(node_modules/.bin/prisma generate *)",
+      "Bash(npx prisma@5.22.0 generate)",
+      "Bash(node_modules/prisma/build/index.js generate *)"
+    ]
+  }
+}
