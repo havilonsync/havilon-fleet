@@ -44,6 +44,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const shop = await prisma.repairShop.create({ data: parsed.data })
+  const shop = await prisma.repairShop.create({
+    data: {
+      name:          parsed.data.name ?? '',
+      address:       parsed.data.address,
+      phone:         parsed.data.phone,
+      contactPerson: parsed.data.contactPerson,
+      email:         parsed.data.email,
+      categories:    parsed.data.categories ?? [],
+      notes:         parsed.data.notes,
+    },
+  })
   return NextResponse.json({ shop }, { status: 201 })
 }
