@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Truck, Plus, AlertTriangle } from 'lucide-react'
+import { Truck, Plus, Upload } from 'lucide-react'
 import prisma from '@/lib/prisma'
 
 
@@ -43,9 +43,14 @@ export default async function VehiclesPage() {
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">{vehicles.length} vehicles · VIN-level tracking</p>
         </div>
-        <Link href="/vehicles/new" className="btn-primary">
-          <Plus size={15} /> Add Vehicle
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/vehicles/import" className="btn-secondary flex items-center gap-1.5">
+            <Upload size={14} /> Import from Amazon
+          </Link>
+          <Link href="/vehicles/new" className="btn-primary flex items-center gap-1.5">
+            <Plus size={15} /> Add Vehicle
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-4">
