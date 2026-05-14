@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Star, Users, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Star, Users, TrendingUp, TrendingDown, Minus, Upload } from 'lucide-react'
 import prisma from '@/lib/prisma'
 import SyncButton from '@/components/scorecards/SyncButton'
 
@@ -100,7 +100,12 @@ export default async function ScorecardsPage() {
             )}
           </p>
         </div>
-        <SyncButton />
+        <div className="flex gap-2">
+          <Link href="/scorecards/upload" className="btn-secondary flex items-center gap-1.5 text-sm">
+            <Upload size={14} /> Upload Files
+          </Link>
+          <SyncButton />
+        </div>
       </div>
 
       {/* Weekly overview cards — Amazon-style */}
