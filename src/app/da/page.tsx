@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Users, Plus, AlertTriangle, Phone, Shield } from 'lucide-react'
+import { Users, Plus, AlertTriangle, Upload } from 'lucide-react'
 import prisma from '@/lib/prisma'
 
 
@@ -82,7 +82,10 @@ export default async function DAPage() {
           <form action="/api/amazon/sync" method="POST">
             <button className="btn-secondary text-sm">↻ Sync from Amazon</button>
           </form>
-          <Link href="/da/new" className="btn-primary">
+          <Link href="/da/import" className="btn-secondary flex items-center gap-1.5 text-sm">
+            <Upload size={14} /> Import CSV
+          </Link>
+          <Link href="/da/new" className="btn-primary flex items-center gap-1.5">
             <Plus size={15} /> Add DA
           </Link>
         </div>
