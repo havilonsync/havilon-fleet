@@ -6,6 +6,7 @@ import { Upload, CheckCircle, AlertTriangle, FileText } from 'lucide-react'
 
 interface UploadResult {
   imported: number
+  created:  number
   skipped:  number
   errors:   { row: number; name: string; reason: string }[]
   week:     string
@@ -129,12 +130,12 @@ export default function UploadForm() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="stat-card border-green-200 bg-green-50">
-                  <p className="text-xs text-gray-500 mb-1">DAs Updated</p>
+                  <p className="text-xs text-gray-500 mb-1">Scorecards Saved</p>
                   <p className="text-2xl font-semibold text-green-600">{result.imported}</p>
                 </div>
-                <div className="stat-card border-amber-200 bg-amber-50">
-                  <p className="text-xs text-gray-500 mb-1">Not in Roster</p>
-                  <p className="text-2xl font-semibold text-amber-600">{result.skipped}</p>
+                <div className="stat-card border-blue-200 bg-blue-50">
+                  <p className="text-xs text-gray-500 mb-1">New DAs Added</p>
+                  <p className="text-2xl font-semibold text-blue-600">{result.created ?? 0}</p>
                 </div>
                 <div className="stat-card border-red-200 bg-red-50">
                   <p className="text-xs text-gray-500 mb-1">Errors</p>
@@ -142,9 +143,9 @@ export default function UploadForm() {
                 </div>
               </div>
 
-              {result.skipped > 0 && (
-                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-                  {result.skipped} DA(s) in the file were not found in your roster — ensure DAs are imported first with matching names or Transporter IDs.
+              {(result.created ?? 0) > 0 && (
+                <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
+                  {result.created} DA(s) were automatically added to your roster from this file. Visit the DA Roster to fill in any missing details.
                 </p>
               )}
 

@@ -4,9 +4,10 @@ import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 
 // ─── Column aliases for Amazon DSP export formats ────────────────────────────
+// "name and id" is Amazon's exact portal column header
 const COL: Record<string, string[]> = {
-  daName:        ['associate name', 'da name', 'driver name', 'name', 'employee name', 'full name', 'driver'],
-  transponderId: ['transporter id', 'transponder id', 'transponder', 'associate id', 'da id', 'employee id', 'driver id'],
+  daName:        ['name and id', 'associate name', 'da name', 'driver name', 'name', 'employee name', 'full name', 'driver'],
+  transponderId: ['transponderid', 'transporter id', 'transponder id', 'transponder', 'associate id', 'da id', 'employee id', 'driver id'],
   week:          ['week', 'reporting week', 'performance week', 'scorecard week', 'period'],
   standing:      ['overall standing', 'standing', 'tier', 'performance tier', 'performance standing', 'weekly standing'],
   deliveryScore: ['dcr %', 'dcr%', 'dcr', 'delivery completion rate', 'delivery score', 'overall score', 'overall dcr'],
@@ -14,6 +15,8 @@ const COL: Record<string, string[]> = {
   safetyScore:   ['safety score', 'fico score', 'mentor score', 'driver safety', 'safety', 'fico', 'mentor', 'at-stop safety', 'at stop safety'],
   dnrRate:       ['dnr dpmo', 'dnr rate', 'dnr %', 'dnr', 'did not return dpmo', 'did not return rate'],
   dsbRate:       ['dsb rate', 'dsb %', 'dsb', 'delivery success behavior', 'delivery success rate'],
+  email:         ['email', 'email address', 'work email'],
+  phone:         ['personal phone number', 'phone', 'phone number', 'mobile'],
 }
 
 function findCol(headers: string[], aliases: string[]): number {
@@ -186,7 +189,7 @@ export async function POST(req: NextRequest) {
   const get = (row: string[], field: string) => col[field] >= 0 ? (row[col[field]] ?? '').trim() : ''
 
   const imported: string[] = []
-  const skipped:  string[] = []
+  const created:  string[] = []
   const errors:   { row: number; name: string; reason: string }[] = []
 
   for (let i = 0; i < rows.length; i++) {
@@ -197,7 +200,8 @@ export async function POST(req: NextRequest) {
 
     const week = normalizeWeek(get(row, 'week'), weekFallback)
 
-    const da = await prisma.dA.findFirst({
+    // Try to find existing DA by name or transponder ID
+    let da = await prisma.dA.findFirst({
       where: {
         OR: [
           ...(rawName ? [{ name: { equals: rawName, mode: 'insensitive' as const } }] : []),
@@ -206,7 +210,33 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    if (!da) { skipped.push(rawName || tid); continue }
+    // Auto-create DA if not in roster — scorecard data takes priority over empty roster
+    if (!da) {
+      if (!rawName) { errors.push({ row: i + 2, name: tid, reason: 'No name found and DA not in roster' }); continue }
+      try {
+        const email = get(row, 'email') || undefined
+        da = await prisma.dA.create({
+          data: {
+            name:          rawName,
+            transponderId: tid || undefined,
+            email:         email,
+            phone:         get(row, 'phone') || undefined,
+            status:        'ACTIVE',
+          },
+        })
+        created.push(da.name)
+      } catch (err: any) {
+        // If create fails (e.g. duplicate email), try finding by email
+        const email = get(row, 'email')
+        if (email && err?.code === 'P2002') {
+          da = await prisma.dA.findUnique({ where: { email } }) ?? null
+        }
+        if (!da) {
+          errors.push({ row: i + 2, name: rawName, reason: `Could not create DA: ${err?.message ?? 'unknown'}` })
+          continue
+        }
+      }
+    }
 
     const deliveryScore = parseNum(get(row, 'deliveryScore'))
     const qualityScore  = parseNum(get(row, 'qualityScore'))
@@ -234,7 +264,7 @@ export async function POST(req: NextRequest) {
       sizeBytes:    file.size,
       rowsTotal:    rows.length,
       rowsImported: imported.length,
-      rowsSkipped:  skipped.length,
+      rowsSkipped:  0,
       content:      rawContent,
       uploadedById: session.user.id,
     },
@@ -242,7 +272,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     imported: imported.length,
-    skipped:  skipped.length,
+    created:  created.length,
     errors,
     week: weekFallback,
     detectedColumns: Object.entries(col)
