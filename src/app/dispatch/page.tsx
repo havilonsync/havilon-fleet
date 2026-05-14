@@ -30,6 +30,8 @@ export default function DispatchPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
+  const [broadcasting, setBroadcasting] = useState(false)
+  const [broadcastResult, setBroadcastResult] = useState<{ success: boolean; message?: string; error?: string } | null>(null)
 
   const dayLabel = (() => {
     const today = format(new Date(), 'yyyy-MM-dd')
@@ -82,6 +84,24 @@ export default function DispatchPage() {
 
   const removeRoute = (index: number) => {
     setRoutes(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const broadcast = async () => {
+    setBroadcasting(true)
+    setBroadcastResult(null)
+    try {
+      const res = await fetch('/api/dispatch/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date }),
+      })
+      const data = await res.json()
+      setBroadcastResult(data)
+    } catch {
+      setBroadcastResult({ success: false, error: 'Network error — broadcast failed' })
+    } finally {
+      setBroadcasting(false)
+    }
   }
 
   // Stats
