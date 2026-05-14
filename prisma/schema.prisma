@@ -512,6 +512,24 @@ model SyncLog {
   @@map("sync_logs")
 }
 
+// Tracks each file uploaded for a scorecard week
+model ScorecardFile {
+  id           String   @id @default(cuid())
+  filename     String
+  // weekly_overview | weekly_trailing | at_stop_safety | pps_daily | dvic | scorecard_pdf | pod_quality | other
+  fileType     String
+  week         String
+  sizeBytes    Int      @default(0)
+  rowsTotal    Int      @default(0)
+  rowsImported Int      @default(0)
+  rowsSkipped  Int      @default(0)
+  content      String?  @db.Text  // CSV text or base64 for XLSX; null for PDFs
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  @@map("scorecard_files")
+}
+
 model Incident {
   id              String    @id @default(cuid())
   incidentNumber  String    @unique

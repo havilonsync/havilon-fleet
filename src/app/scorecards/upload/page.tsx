@@ -1,241 +1,199 @@
-'use client'
-
-import { useState, useRef, ChangeEvent } from 'react'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Upload, FileText, CheckCircle, AlertTriangle, ArrowLeft, FileSpreadsheet, Info } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Clock, FileText, Info } from 'lucide-react'
+import { getISOWeek, getYear } from 'date-fns'
+import prisma from '@/lib/prisma'
+import UploadForm from '@/components/scorecards/UploadForm'
 
-interface UploadResult {
-  imported: number
-  skipped:  number
-  errors:   { row: number; name: string; reason: string }[]
-  week:     string
-  detectedColumns: { field: string; header: string }[]
-}
-
-const FILE_TYPES = [
-  { label: 'Weekly Overview (CSV)',          hint: 'DSP_Overview_Dashboard_HAVL_DDF4_2026-Wnn.csv',     accept: '.csv' },
-  { label: 'Weekly Overview 6-Week Trailing', hint: 'Weekly trailing CSV with multi-week DA scores',     accept: '.csv' },
-  { label: 'At-Stop Safety (CSV)',            hint: 'Safety scores per DA for the week',                 accept: '.csv' },
-  { label: 'PPS Daily (CSV)',                 hint: 'Packages Per Stop / daily delivery data per DA',    accept: '.csv' },
-  { label: 'DVIC (XLSX)',                     hint: 'Daily Vehicle Inspection — vehicle data',           accept: '.xlsx,.xls' },
+// The 7 file types Amazon DSP requires for the weekly scorecard
+const CHECKLIST: { type: string; label: string; hint: string; ext: string; critical: boolean }[] = [
+  { type: 'weekly_overview',  label: 'Weekly Overview',             hint: 'DSP_Overview_Dashboard_HAVL_DDF4_2026-Wnn.csv', ext: 'CSV',  critical: true  },
+  { type: 'weekly_trailing',  label: 'Weekly Overview 6-Week',      hint: '6-week trailing CSV with historical DA scores', ext: 'CSV',  critical: false },
+  { type: 'scorecard_pdf',    label: 'Scorecard',                   hint: 'Weekly Scorecard PDF (saved for reference)',    ext: 'PDF',  critical: false },
+  { type: 'pod_quality',      label: 'POD Quality',                 hint: 'Proof of Delivery quality report PDF',          ext: 'PDF',  critical: false },
+  { type: 'pps_daily',        label: 'PPS Daily',                   hint: 'Packages Per Stop daily performance CSV',       ext: 'CSV',  critical: false },
+  { type: 'dvic',             label: 'DVIC',                        hint: 'Daily Vehicle Inspection Checklist XLSX',       ext: 'XLSX', critical: false },
+  { type: 'at_stop_safety',   label: 'At-Stop Safety',              hint: 'At-stop safety scores per DA CSV',             ext: 'CSV',  critical: true  },
 ]
 
-const FIELD_LABELS: Record<string, string> = {
-  daName:        'DA Name',
-  transponderId: 'Transporter ID',
-  week:          'Week',
-  standing:      'Standing',
-  deliveryScore: 'DCR %',
-  qualityScore:  'Quality Score',
-  safetyScore:   'Safety Score',
-  dnrRate:       'DNR Rate',
-  dsbRate:       'DSB Rate',
+function currentWeekStr(): string {
+  const now = new Date()
+  return `${getYear(now)}-W${String(getISOWeek(now)).padStart(2, '0')}`
 }
 
-export default function ScorecardUploadPage() {
-  const fileRef  = useRef<HTMLInputElement>(null)
-  const [file,    setFile]    = useState<File | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [result,  setResult]  = useState<UploadResult | null>(null)
-  const [error,   setError]   = useState<string | null>(null)
-  const [accept,  setAccept]  = useState('.csv,.xlsx,.xls')
+export default async function ScorecardUploadPage() {
+  const session = await getServerSession(authOptions) as any
+  if (!session) redirect('/auth/signin')
 
-  const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    if (!f) return
-    setFile(f)
-    setResult(null)
-    setError(null)
+  const week = currentWeekStr()
+
+  // Fetch what has been uploaded for this week (and recent weeks)
+  const recentUploads = await prisma.scorecardFile.findMany({
+    where: { week },
+    select: { fileType: true, filename: true, rowsImported: true, rowsSkipped: true, createdAt: true },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  // Most recent upload per file type this week
+  const uploadedTypes = new Map<string, typeof recentUploads[0]>()
+  for (const u of recentUploads) {
+    if (!uploadedTypes.has(u.fileType)) uploadedTypes.set(u.fileType, u)
   }
 
-  const handleUpload = async () => {
-    if (!file) return
-    setLoading(true)
-    setError(null)
-    setResult(null)
+  // Past weeks with any uploads (for the history section)
+  const pastUploads = await prisma.scorecardFile.findMany({
+    where: { week: { not: week } },
+    select: { week: true, fileType: true, filename: true, rowsImported: true, createdAt: true },
+    orderBy: [{ week: 'desc' }, { createdAt: 'desc' }],
+    take: 40,
+  })
 
-    const form = new FormData()
-    form.append('file', file)
-
-    try {
-      const res  = await fetch('/api/scorecards/upload', { method: 'POST', body: form })
-      const data = await res.json()
-      if (!res.ok) {
-        let msg = data.error ?? 'Upload failed'
-        if (data.detectedHeaders?.length) msg += `\n\nDetected columns: ${data.detectedHeaders.join(', ')}`
-        setError(msg)
-      } else {
-        setResult(data)
-      }
-    } catch {
-      setError('Network error — please try again')
-    } finally {
-      setLoading(false)
-    }
+  // Group past uploads by week
+  const pastByWeek = new Map<string, typeof pastUploads>()
+  for (const u of pastUploads) {
+    if (!pastByWeek.has(u.week)) pastByWeek.set(u.week, [])
+    pastByWeek.get(u.week)!.push(u)
   }
 
-  const reset = () => {
-    setFile(null)
-    setResult(null)
-    setError(null)
-    if (fileRef.current) fileRef.current.value = ''
-  }
+  const uploadedCount = CHECKLIST.filter(c => uploadedTypes.has(c.type)).length
+  const criticalDone  = CHECKLIST.filter(c => c.critical && uploadedTypes.has(c.type)).length
+  const criticalTotal = CHECKLIST.filter(c => c.critical).length
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="max-w-5xl space-y-6">
       {/* Header */}
       <div>
         <Link href="/scorecards" className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
           <ArrowLeft size={14} /> Back to Scorecards
         </Link>
-        <h1 className="text-xl font-semibold text-gray-900">Upload Amazon Scorecard Files</h1>
+        <h1 className="text-xl font-semibold text-gray-900">Weekly Scorecard Files</h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          Upload the weekly files from your Amazon DSP Portal to populate DA scorecards.
+          Upload the 7 files from Amazon DSP Portal to populate DA scorecards for week{' '}
+          <span className="font-mono font-medium">{week}</span>
         </p>
       </div>
 
-      {/* Which files to upload */}
-      <div className="card p-5 bg-blue-50 border-blue-200">
-        <p className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
-          <Info size={15} /> Which files to upload
-        </p>
-        <div className="space-y-2">
-          {FILE_TYPES.map(ft => (
-            <div key={ft.label} className="flex items-start gap-3">
-              <FileSpreadsheet size={14} className="text-blue-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="text-sm font-medium text-blue-900">{ft.label}</span>
-                <span className="text-xs text-blue-600 ml-2">{ft.hint}</span>
-              </div>
+      <div className="grid grid-cols-3 gap-6">
+        {/* Left: checklist */}
+        <div className="col-span-1 space-y-4">
+          {/* Progress */}
+          <div className="card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Week {week}</span>
+              <span className="text-xs text-gray-500">{uploadedCount} / {CHECKLIST.length} files</span>
             </div>
-          ))}
-        </div>
-        <p className="text-xs text-blue-700 mt-3 border-t border-blue-200 pt-3">
-          The <strong>Weekly Overview CSV</strong> is the most important — it contains per-DA scores for DCR, DSB, DNR, Safety, Quality, and Standing. Upload each file one at a time. The system merges data so uploading multiple files for the same week updates the same scorecard records.
-        </p>
-      </div>
-
-      {/* Upload area */}
-      {!result && (
-        <div className="card p-6 space-y-4">
-          <div
-            className="border-2 border-dashed border-gray-200 rounded-xl p-10 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
-            onClick={() => fileRef.current?.click()}
-          >
-            <Upload size={32} className="mx-auto text-gray-400 mb-3" />
-            <p className="text-sm font-medium text-gray-700">
-              {file ? file.name : 'Click to select a CSV or XLSX file'}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              {file
-                ? `${(file.size / 1024).toFixed(1)} KB`
-                : 'Accepts .csv, .xlsx, .xls — the system auto-detects the file type'}
-            </p>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              className="hidden"
-              onChange={handleFile}
-            />
-          </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 whitespace-pre-line">
-              {error}
+            <div className="w-full bg-gray-100 rounded-full h-2 mb-3">
+              <div
+                className="bg-blue-500 h-2 rounded-full transition-all"
+                style={{ width: `${(uploadedCount / CHECKLIST.length) * 100}%` }}
+              />
             </div>
-          )}
-
-          {file && (
-            <div className="flex gap-3">
-              <button onClick={handleUpload} disabled={loading} className="btn-primary">
-                {loading ? 'Processing…' : `Import from "${file.name}"`}
-              </button>
-              <button onClick={reset} className="btn-secondary">Clear</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Result */}
-      {result && (
-        <div className="card p-6 space-y-5">
-          <div className="flex items-center gap-3">
-            <CheckCircle size={22} className="text-green-600" />
-            <div>
-              <p className="font-semibold text-gray-900">Upload Complete — Week {result.week}</p>
-              <p className="text-sm text-gray-500">{file?.name}</p>
-            </div>
-          </div>
-
-          {/* Detected columns */}
-          {result.detectedColumns.length > 0 && (
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs font-medium text-gray-600 mb-2">Detected columns</p>
-              <div className="flex flex-wrap gap-2">
-                {result.detectedColumns.map(({ field, header }) => (
-                  <span key={field} className="text-xs bg-white border border-gray-200 rounded px-2 py-0.5">
-                    <span className="text-gray-400">{FIELD_LABELS[field] ?? field}:</span> {header}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="stat-card border-green-200 bg-green-50">
-              <p className="text-xs text-gray-500 mb-1">Imported</p>
-              <p className="text-2xl font-semibold text-green-600">{result.imported}</p>
-              <p className="text-xs text-gray-400 mt-1">DAs updated</p>
-            </div>
-            <div className="stat-card border-amber-200 bg-amber-50">
-              <p className="text-xs text-gray-500 mb-1">Skipped</p>
-              <p className="text-2xl font-semibold text-amber-600">{result.skipped}</p>
-              <p className="text-xs text-gray-400 mt-1">Not in roster</p>
-            </div>
-            <div className="stat-card border-red-200 bg-red-50">
-              <p className="text-xs text-gray-500 mb-1">Errors</p>
-              <p className="text-2xl font-semibold text-red-600">{result.errors.length}</p>
-            </div>
-          </div>
-
-          {result.skipped > 0 && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-              {result.skipped} DA(s) were in the file but not found in your roster — make sure DAs are imported first with matching names or Transporter IDs.
-            </p>
-          )}
-
-          {result.errors.length > 0 && (
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                <AlertTriangle size={14} className="text-red-500" /> Rows with errors
+            {criticalDone === criticalTotal ? (
+              <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded p-2 flex items-center gap-1.5">
+                <CheckCircle size={12} /> Key files uploaded — scorecards ready
               </p>
-              <div className="rounded-lg border border-red-200 overflow-hidden">
-                <table className="w-full text-xs">
-                  <thead className="bg-red-50">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium text-red-700">Row</th>
-                      <th className="px-3 py-2 text-left font-medium text-red-700">Name</th>
-                      <th className="px-3 py-2 text-left font-medium text-red-700">Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.errors.map((e, i) => (
-                      <tr key={i} className="border-t border-red-100">
-                        <td className="px-3 py-2 text-gray-600">{e.row}</td>
-                        <td className="px-3 py-2 font-medium">{e.name}</td>
-                        <td className="px-3 py-2 text-red-700">{e.reason}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 flex items-center gap-1.5">
+                <Info size={12} /> {criticalTotal - criticalDone} key file(s) still needed
+              </p>
+            )}
+          </div>
 
-          <div className="flex gap-3">
-            <Link href="/scorecards" className="btn-primary">View Scorecards</Link>
-            <button onClick={reset} className="btn-secondary">Upload Another File</button>
+          {/* Checklist */}
+          <div className="card overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <h3 className="text-sm font-medium text-gray-700">Required Files</h3>
+            </div>
+            <ul className="divide-y divide-gray-50">
+              {CHECKLIST.map(item => {
+                const upload = uploadedTypes.get(item.type)
+                return (
+                  <li key={item.type} className="px-4 py-3 flex items-start gap-3">
+                    {upload ? (
+                      <CheckCircle size={18} className="text-green-500 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <Clock size={18} className={`flex-shrink-0 mt-0.5 ${item.critical ? 'text-amber-400' : 'text-gray-300'}`} />
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-sm font-medium ${upload ? 'text-gray-900' : 'text-gray-500'}`}>
+                          {item.label}
+                        </span>
+                        <span className="text-xs font-mono text-gray-400 bg-gray-100 rounded px-1">{item.ext}</span>
+                        {item.critical && !upload && (
+                          <span className="text-xs text-amber-600 font-medium">required</span>
+                        )}
+                      </div>
+                      {upload ? (
+                        <p className="text-xs text-green-600 truncate mt-0.5">
+                          {upload.filename}
+                          {upload.rowsImported > 0 && ` · ${upload.rowsImported} DAs`}
+                          {' · '}{new Date(upload.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-400 mt-0.5">{item.hint}</p>
+                      )}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        </div>
+
+        {/* Right: upload form */}
+        <div className="col-span-2 space-y-4">
+          <UploadForm />
+
+          <div className="card p-4 bg-blue-50 border-blue-200">
+            <p className="text-xs font-medium text-blue-900 mb-1 flex items-center gap-1.5">
+              <Info size={13} /> Upload tip
+            </p>
+            <p className="text-xs text-blue-800">
+              The week is auto-detected from the filename (e.g. <span className="font-mono">..._2026-W19.csv</span>).
+              Upload files one at a time — each upload merges data into the same scorecard week.
+              DAs are matched by name or Transporter ID, so make sure your roster is up to date first.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Past uploads history */}
+      {pastByWeek.size > 0 && (
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h3 className="section-title">Past Uploads — Historical Reference</h3>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {Array.from(pastByWeek.entries()).map(([w, files]) => {
+              const typesUploaded = new Set(files.map(f => f.fileType))
+              return (
+                <div key={w} className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700 font-mono">{w}</span>
+                    <span className="text-xs text-gray-400">{typesUploaded.size} / {CHECKLIST.length} files</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {CHECKLIST.map(item => {
+                      const f = files.find(u => u.fileType === item.type)
+                      return (
+                        <span
+                          key={item.type}
+                          className={`flex items-center gap-1 text-xs rounded px-2 py-0.5 ${
+                            f ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-gray-50 border border-gray-200 text-gray-400'
+                          }`}
+                        >
+                          {f ? <CheckCircle size={10} /> : <Clock size={10} />}
+                          {item.label}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

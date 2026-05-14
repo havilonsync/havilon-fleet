@@ -4,7 +4,13 @@
       "Bash(npx prisma *)",
       "Bash(node_modules/.bin/prisma generate *)",
       "Bash(npx prisma@5.22.0 generate)",
-      "Bash(node_modules/prisma/build/index.js generate *)"
+      "Bash(node_modules/prisma/build/index.js generate *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\Dezz\\\\Desktop\\\\havilon-fleet\\\\src\\\\app\\\\api\\\\da\\\\import\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\Dezz\\\\Desktop\\\\havilon-fleet\\\\src\\\\app\\\\da\\\\import\")",
+      "PowerShell(\"Done\")"
     ]
   }
 }
