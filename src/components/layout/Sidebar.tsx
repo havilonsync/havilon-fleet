@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import {
   LayoutDashboard, CheckSquare, ShieldAlert, Truck,
-  Wrench, Package, Building2, FileText, BarChart3,
+  Wrench, Package, Building2, FileText,
   Star, AlertTriangle, Route, Users, LogOut, MapPin, ClipboardList, Package2, CalendarOff, Lock, BarChart3, ShieldCheck, Gift
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
