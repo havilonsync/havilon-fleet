@@ -33,11 +33,16 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
+  const { week, standing, deliveryScore, qualityScore, safetyScore, dnrRate, dsbRate } = parsed.data
+
   // Upsert — if a scorecard for this week already exists, update it
   const scorecard = await prisma.dAScorecard.upsert({
-    where:  { daId_week: { daId: params.id, week: parsed.data.week } },
-    update: { ...parsed.data, syncedAt: new Date() },
-    create: { daId: params.id, ...parsed.data },
+    where:  { daId_week: { daId: params.id, week } },
+    update: { standing, deliveryScore, qualityScore, safetyScore, dnrRate, dsbRate, syncedAt: new Date() },
+    create: {
+      daId: params.id,
+      week, standing, deliveryScore, qualityScore, safetyScore, dnrRate, dsbRate,
+    },
   })
 
   return NextResponse.json({ scorecard }, { status: 201 })
