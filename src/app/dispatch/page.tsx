@@ -202,7 +202,7 @@ export default function DispatchPage() {
             <table className="w-full">
               <thead>
                 <tr>
-                  {['Route', 'Type', 'Assigned DA', 'Van', 'Stops', 'Packages', 'Stage', 'Depart', 'Phone IMEI', ''].map(h => (
+                  {['Route Code', 'Type', 'DA', 'Unit #', 'Stops', 'Packages', 'Stage Loc.', 'Departure', 'Phone IMEI', ''].map(h => (
                     <th key={h} className="table-header text-left">{h}</th>
                   ))}
                 </tr>

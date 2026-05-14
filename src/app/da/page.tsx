@@ -156,7 +156,7 @@ export default async function DAPage() {
           <table className="w-full">
             <thead>
               <tr>
-                {['Name', 'Badge / Transponder', 'Phone', 'Off Days', 'DL Expiry', 'Equipment', 'Score', 'Alerts', 'Status'].map(h => (
+                {['Name', 'ADP ID', 'Badge ID', 'Transponder', 'Email', 'Phone', 'Off Days', 'Hire Date', 'DL Expiry', 'Score', 'Alerts', 'Status'].map(h => (
                   <th key={h} className="table-header text-left">{h}</th>
                 ))}
               </tr>
@@ -172,40 +172,32 @@ export default async function DAPage() {
                       <Link href={`/da/${da.id}`} className="font-medium text-blue-600 hover:underline">
                         {da.name}
                       </Link>
-                      {da.voxerId && (
-                        <div className="text-xs text-gray-400">{da.voxerId}</div>
-                      )}
                     </td>
-                    <td className="table-cell">
-                      {da.badgeId && (
-                        <div className="text-xs font-mono text-gray-600">{da.badgeId}</div>
-                      )}
-                      {da.transponderId && (
-                        <div className="text-xs font-mono text-gray-400">{da.transponderId?.slice(0, 12)}…</div>
-                      )}
+                    <td className="table-cell font-mono text-xs text-gray-600">
+                      {da.adpId ?? <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="table-cell font-mono text-xs text-gray-600">
+                      {da.badgeId ?? <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="table-cell font-mono text-xs text-gray-400">
+                      {da.transponderId ? da.transponderId.slice(0, 12) + '…' : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="table-cell text-xs text-gray-600">
+                      {da.email ?? <span className="text-gray-300">—</span>}
                     </td>
                     <td className="table-cell text-sm">
                       {da.phone ?? <span className="text-gray-300">—</span>}
                     </td>
                     <td className="table-cell text-xs text-gray-600">
-                      {da.offDays?.length > 0
-                        ? da.offDays.join(', ')
-                        : <span className="text-gray-300">—</span>
-                      }
+                      {da.offDays?.length > 0 ? da.offDays.join(', ') : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="table-cell text-xs text-gray-600">
+                      {da.hireDate ? new Date(da.hireDate).toLocaleDateString() : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="table-cell">
                       <span className={`badge ${dlExpiryColor(days)}`}>
                         {dlExpiryLabel(days, da.dlExpiry)}
                       </span>
-                    </td>
-                    <td className="table-cell">
-                      <div className="flex gap-1">
-                        {da.phoneAssigned
-                          ? <span className="badge badge-green text-xs">📱 Phone</span>
-                          : <span className="badge badge-gray text-xs">No Phone</span>
-                        }
-                        {da.uniformVest && <span className="badge badge-blue text-xs">Vest</span>}
-                      </div>
                     </td>
                     <td className="table-cell">
                       {latestScore ? (
@@ -241,7 +233,7 @@ export default async function DAPage() {
               })}
               {das.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-sm text-gray-400">
+                  <td colSpan={12} className="text-center py-12 text-sm text-gray-400">
                     No DAs yet — click "Sync from Amazon" to import your active roster
                   </td>
                 </tr>

@@ -163,7 +163,7 @@ export default function DispatchHistoryPage() {
               onChange={e => { setDaFilter(e.target.value); setPage(1) }} />
           </div>
           <div>
-            <label className="label">Van #</label>
+            <label className="label">Unit #</label>
             <input className="input" placeholder="e.g. VAN-014" value={vanFilter}
               onChange={e => { setVanFilter(e.target.value); setPage(1) }} />
           </div>
@@ -220,11 +220,11 @@ export default function DispatchHistoryPage() {
                   { label: 'Route',    field: 'routeCode' },
                   { label: 'Type',     field: 'routeType' },
                   { label: 'DA',       field: 'daName' },
-                  { label: 'Van',      field: 'vehicleNumber' },
+                  { label: 'Unit #',   field: 'vehicleNumber' },
                   { label: 'Stops',    field: 'stopCount' },
                   { label: 'Packages', field: 'packageVolume' },
                   { label: 'Stage',    field: 'stageLocation' },
-                  { label: 'Depart',   field: 'departureTime' },
+                  { label: 'Departure', field: 'departureTime' },
                   { label: 'Phone',    field: 'phoneImei' },
                   { label: 'Status',   field: 'status' },
                 ].map(col => (

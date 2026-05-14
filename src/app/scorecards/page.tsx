@@ -146,7 +146,7 @@ export default async function ScorecardsPage() {
           <table className="w-full">
             <thead>
               <tr>
-                {['DA Name', 'Standing', 'Delivery', 'Quality', 'Safety', 'DNR Rate', 'DSB Rate', 'Trend'].map(h => (
+                {['DA Name', 'Standing', 'DCR %', 'Quality', 'Safety', 'DNR DPMO', 'DSB DPMO', 'Trend'].map(h => (
                   <th key={h} className="table-header text-left">{h}</th>
                 ))}
               </tr>

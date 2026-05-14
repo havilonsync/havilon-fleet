@@ -362,7 +362,7 @@ export default function DAProfilePage() {
                 <table className="w-full">
                   <thead>
                     <tr>
-                      {['Week','Standing','Delivery','Quality','Safety','DNR %','DSB %','Trend'].map(h => (
+                      {['Week','Standing','DCR %','Quality','Safety','DNR DPMO','DSB DPMO','Trend'].map(h => (
                         <th key={h} className="table-header text-left">{h}</th>
                       ))}
                     </tr>
@@ -646,7 +646,7 @@ export default function DAProfilePage() {
               <table className="w-full">
                 <thead>
                   <tr>
-                    {['Date','Route','Type','Van','Stops','Packages','Depart','Status'].map(h => (
+                    {['Date','Route Code','Type','Unit #','Stops','Packages','Departure','Status'].map(h => (
                       <th key={h} className="table-header text-left">{h}</th>
                     ))}
                   </tr>
