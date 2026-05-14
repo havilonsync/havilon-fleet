@@ -57,6 +57,16 @@ export default function DAProfilePage() {
     type: 'VERBAL_WARNING', description: '', issuedBy: '',
     date: format(new Date(), 'yyyy-MM-dd')
   })
+  const [showAddScore, setShowAddScore] = useState(false)
+  const [scoreForm, setScoreForm] = useState({
+    week: (() => {
+      const d = new Date()
+      const jan1 = new Date(d.getFullYear(), 0, 1)
+      const w = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7)
+      return `${d.getFullYear()}-W${String(w).padStart(2, '0')}`
+    })(),
+    standing: 'GREAT', deliveryScore: '', qualityScore: '', safetyScore: '', dnrRate: '', dsbRate: '',
+  })
 
   const reload = () =>
     fetch(`/api/da/${params.id}`).then(r => r.json()).then(d => {
@@ -86,6 +96,23 @@ export default function DAProfilePage() {
   }
 
   const set = (key: string, val: any) => setForm((f: any) => ({ ...f, [key]: val }))
+
+  const addScorecard = async () => {
+    await fetch(`/api/da/${params.id}/scorecard`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        week:          scoreForm.week,
+        standing:      scoreForm.standing,
+        deliveryScore: Number(scoreForm.deliveryScore),
+        qualityScore:  Number(scoreForm.qualityScore),
+        safetyScore:   Number(scoreForm.safetyScore),
+        dnrRate:       Number(scoreForm.dnrRate),
+        dsbRate:       Number(scoreForm.dsbRate),
+      }),
+    })
+    setShowAddScore(false)
+    reload()
+  }
 
   const toggleOffDay = (day: string) => {
     const days = form.offDays ?? []
@@ -332,6 +359,72 @@ export default function DAProfilePage() {
       {/* ── PERFORMANCE ── */}
       {activeTab === 'performance' && (
         <div className="space-y-5">
+
+          {/* Manual entry */}
+          <div className="flex justify-end">
+            <button onClick={() => setShowAddScore(s => !s)} className="btn-secondary text-sm">
+              {showAddScore ? 'Cancel' : '+ Add Scorecard Week'}
+            </button>
+          </div>
+
+          {showAddScore && (
+            <div className="card p-5 space-y-4">
+              <h3 className="font-medium text-gray-900">Add / Update Scorecard</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="label">Week (YYYY-Wnn)</label>
+                  <input className="input font-mono" placeholder="e.g. 2025-W20"
+                    value={scoreForm.week} onChange={e => setScoreForm(f => ({ ...f, week: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Standing</label>
+                  <select className="select" value={scoreForm.standing}
+                    onChange={e => setScoreForm(f => ({ ...f, standing: e.target.value }))}>
+                    <option value="FANTASTIC_PLUS">Fantastic+</option>
+                    <option value="FANTASTIC">Fantastic</option>
+                    <option value="GREAT">Great</option>
+                    <option value="GOOD">Good</option>
+                    <option value="FAIR">Fair</option>
+                    <option value="POOR">Poor</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">DCR % (Delivery)</label>
+                  <input type="number" className="input" min="0" max="100" placeholder="e.g. 96"
+                    value={scoreForm.deliveryScore} onChange={e => setScoreForm(f => ({ ...f, deliveryScore: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Quality Score</label>
+                  <input type="number" className="input" min="0" max="100" placeholder="e.g. 95"
+                    value={scoreForm.qualityScore} onChange={e => setScoreForm(f => ({ ...f, qualityScore: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Safety Score</label>
+                  <input type="number" className="input" min="0" max="100" placeholder="e.g. 98"
+                    value={scoreForm.safetyScore} onChange={e => setScoreForm(f => ({ ...f, safetyScore: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">DNR DPMO</label>
+                  <input type="number" className="input" min="0" placeholder="e.g. 2.4"
+                    value={scoreForm.dnrRate} onChange={e => setScoreForm(f => ({ ...f, dnrRate: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">DSB DPMO</label>
+                  <input type="number" className="input" min="0" max="100" placeholder="e.g. 94"
+                    value={scoreForm.dsbRate} onChange={e => setScoreForm(f => ({ ...f, dsbRate: e.target.value }))} />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={addScorecard}
+                  disabled={!scoreForm.week || !scoreForm.deliveryScore}
+                  className="btn-primary text-sm">
+                  Save Scorecard
+                </button>
+                <button onClick={() => setShowAddScore(false)} className="btn-secondary text-sm">Cancel</button>
+              </div>
+            </div>
+          )}
+
           {da.scorecards?.length > 0 ? (
             <>
               {/* Averages */}
