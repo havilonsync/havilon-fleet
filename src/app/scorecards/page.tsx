@@ -1,74 +1,90 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { getISOWeek, getYear, subWeeks } from 'date-fns'
 import Link from 'next/link'
-import { TrendingUp, TrendingDown, Minus, AlertTriangle, Star } from 'lucide-react'
+import { Star, Users, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import prisma from '@/lib/prisma'
+import SyncButton from '@/components/scorecards/SyncButton'
 
-
-function currentWeekStr() {
-  const now = new Date()
-  return `${getYear(now)}-W${String(getISOWeek(now)).padStart(2, '0')}`
+const STANDING_BG: Record<string, string> = {
+  FANTASTIC_PLUS: 'bg-emerald-500',
+  FANTASTIC:      'bg-green-500',
+  GREAT:          'bg-blue-500',
+  GOOD:           'bg-blue-400',
+  FAIR:           'bg-amber-500',
+  POOR:           'bg-red-500',
 }
-
-function lastWeekStr() {
-  const d = subWeeks(new Date(), 1)
-  return `${getYear(d)}-W${String(getISOWeek(d)).padStart(2, '0')}`
-}
-
-const STANDING_ORDER = ['FANTASTIC_PLUS', 'FANTASTIC', 'GREAT', 'GOOD', 'FAIR', 'POOR']
-const STANDING_COLORS: Record<string, string> = {
+const STANDING_BADGE: Record<string, string> = {
   FANTASTIC_PLUS: 'badge-green',
-  FANTASTIC: 'badge-green',
-  GREAT: 'badge-blue',
-  GOOD: 'badge-blue',
-  FAIR: 'badge-amber',
-  POOR: 'badge-red',
+  FANTASTIC:      'badge-green',
+  GREAT:          'badge-blue',
+  GOOD:           'badge-blue',
+  FAIR:           'badge-amber',
+  POOR:           'badge-red',
 }
 
 function formatStanding(s: string) {
   return s.replace(/_/g, ' ').replace('PLUS', '+')
 }
 
+function weekLabel(week: string): { num: string; year: string } {
+  const [year, wpart] = week.split('-W')
+  return { num: parseInt(wpart, 10).toString(), year }
+}
+
+function majorityStanding(standings: string[]): string {
+  const counts: Record<string, number> = {}
+  for (const s of standings) counts[s] = (counts[s] ?? 0) + 1
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'GOOD'
+}
+
 export default async function ScorecardsPage() {
   const session = await getServerSession(authOptions) as any
   if (!session) redirect('/auth/signin')
 
-  const week = lastWeekStr()
+  // Pull all scorecard records (minimal fields) to build week summary
+  const allScorecards = await prisma.dAScorecard.findMany({
+    select: { week: true, standing: true, deliveryScore: true, daId: true },
+    orderBy: { week: 'desc' },
+  })
 
-  // @ts-ignore - models available after prisma generate
-  const [scorecards, lastSync, weeklyAlerts] = await Promise.all([
-    prisma.dAScorecard.findMany({
-      where: { week },
-      include: {
-        da: {
-          select: {
-            id: true, name: true, status: true,
-            _count: { select: { scorecards: true } },
-          },
-        },
-      },
-      orderBy: { deliveryScore: 'desc' },
-    }),
-    prisma.syncLog.findFirst({
-      where: { type: { contains: 'SCORECARD' }, status: 'SUCCESS' },
-      orderBy: { runAt: 'desc' },
-    }),
-    prisma.dAAlert.findMany({
-      where: { week, type: 'LOW_PERFORMANCE', isResolved: false },
-      include: { da: { select: { name: true } } },
-    }),
-  ])
+  // Group by week → { standing[], driverIds, totalScore }
+  const weekMap = new Map<string, { standings: string[]; daIds: Set<string>; totalScore: number }>()
+  for (const sc of allScorecards) {
+    if (!weekMap.has(sc.week)) weekMap.set(sc.week, { standings: [], daIds: new Set(), totalScore: 0 })
+    const entry = weekMap.get(sc.week)!
+    entry.standings.push(sc.standing)
+    entry.daIds.add(sc.daId)
+    entry.totalScore += sc.deliveryScore
+  }
 
-  const fantastic = scorecards.filter(s => ['FANTASTIC_PLUS', 'FANTASTIC'].includes(s.standing))
-  const atRisk = scorecards.filter(s => ['FAIR', 'POOR'].includes(s.standing))
-  const avgScore = scorecards.length
-    ? (scorecards.reduce((t, s) => t + s.deliveryScore, 0) / scorecards.length).toFixed(1)
-    : '—'
+  const weekSummaries = Array.from(weekMap.entries())
+    .slice(0, 10)
+    .map(([week, data]) => ({
+      week,
+      drivers: data.daIds.size,
+      standing: majorityStanding(data.standings),
+      avgScore: data.daIds.size > 0 ? (data.totalScore / data.daIds.size) : 0,
+    }))
+
+  const lastSync = await prisma.syncLog.findFirst({
+    where: { type: { contains: 'SCORECARD' }, status: 'SUCCESS' },
+    orderBy: { runAt: 'desc' },
+  })
+
+  // DA detail table for the most recent week with data
+  const latestWeek = weekSummaries[0]?.week ?? ''
+  const scorecards = latestWeek
+    ? await prisma.dAScorecard.findMany({
+        where: { week: latestWeek },
+        include: { da: { select: { id: true, name: true, status: true } } },
+        orderBy: { deliveryScore: 'desc' },
+      })
+    : []
 
   return (
     <div className="space-y-6 max-w-7xl">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
@@ -76,7 +92,7 @@ export default async function ScorecardsPage() {
             DA Scorecards
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Week {week} · Auto-synced from Amazon DSP Portal
+            Synced from Amazon DSP Portal
             {lastSync && (
               <span className="ml-2 text-xs text-green-600">
                 · Last sync: {new Date(lastSync.runAt).toLocaleString()}
@@ -84,126 +100,127 @@ export default async function ScorecardsPage() {
             )}
           </p>
         </div>
-        <div className="flex gap-2">
-          <form action="/api/amazon/sync" method="POST">
-            <button className="btn-secondary text-sm">↻ Sync Now</button>
-          </form>
-        </div>
+        <SyncButton />
       </div>
 
-      {/* Alert strip for low performers */}
-      {atRisk.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="text-red-500 flex-shrink-0 mt-0.5" size={18} />
-          <div>
-            <p className="font-medium text-red-800">
-              {atRisk.length} DA{atRisk.length > 1 ? 's' : ''} at risk this week
-            </p>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {atRisk.map(s => (
-                <span key={s.id} className="badge badge-red">
-                  {s.da.name} — {formatStanding(s.standing)}
-                </span>
-              ))}
-            </div>
+      {/* Weekly overview cards — Amazon-style */}
+      {weekSummaries.length > 0 ? (
+        <div>
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            Weekly Performance Overview
+          </h2>
+          <div className="grid grid-cols-5 gap-3 xl:grid-cols-10">
+            {weekSummaries.map(({ week, drivers, standing, avgScore }) => {
+              const { num, year } = weekLabel(week)
+              const isLatest = week === latestWeek
+              return (
+                <div
+                  key={week}
+                  className={`card p-4 text-center transition-shadow ${isLatest ? 'ring-2 ring-blue-400 shadow-md' : 'hover:shadow-md'}`}
+                >
+                  {/* Week number — big, like Amazon's portal */}
+                  <div className="mb-1">
+                    <span className="text-4xl font-bold text-gray-900 leading-none">{num}</span>
+                  </div>
+                  <div className="text-xs text-gray-400 mb-2">{year}</div>
+
+                  {/* Standing badge */}
+                  <div className={`text-white text-xs font-bold px-2 py-0.5 rounded-full mb-3 ${STANDING_BG[standing] ?? 'bg-gray-400'}`}>
+                    {formatStanding(standing)}
+                  </div>
+
+                  {/* Driver count */}
+                  <div className="flex items-center justify-center gap-1 text-xs text-gray-500">
+                    <Users size={11} />
+                    <span className="font-medium text-gray-700">{drivers}</span>
+                    <span>DAs</span>
+                  </div>
+
+                  {/* Avg score */}
+                  <div className="text-xs text-gray-400 mt-1">
+                    {avgScore.toFixed(0)}% avg
+                  </div>
+                </div>
+              )
+            })}
           </div>
+        </div>
+      ) : (
+        <div className="card p-10 text-center">
+          <Star size={32} className="mx-auto text-gray-300 mb-3" />
+          <p className="text-sm font-medium text-gray-500">No scorecard data yet</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Click Sync Now to pull data from Amazon DSP Portal,<br />
+            or add individual scorecards from each DA's profile page.
+          </p>
         </div>
       )}
 
-      {/* Summary stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="stat-card">
-          <p className="text-xs text-gray-500 mb-1">DAs Scored</p>
-          <p className="text-2xl font-semibold">{scorecards.length}</p>
-          <p className="text-xs text-gray-400 mt-1">Week {week}</p>
-        </div>
-        <div className="stat-card">
-          <p className="text-xs text-gray-500 mb-1">Avg Delivery Score</p>
-          <p className="text-2xl font-semibold">{avgScore}</p>
-        </div>
-        <div className="stat-card border-green-200 bg-green-50">
-          <p className="text-xs text-gray-500 mb-1">Fantastic / Fantastic+</p>
-          <p className="text-2xl font-semibold text-green-600">{fantastic.length}</p>
-        </div>
-        <div className="stat-card border-red-200 bg-red-50">
-          <p className="text-xs text-gray-500 mb-1">Fair / Poor</p>
-          <p className="text-2xl font-semibold text-red-600">{atRisk.length}</p>
-          <p className="text-xs text-gray-400 mt-1">Need coaching</p>
-        </div>
-      </div>
-
-      {/* Scorecard table */}
-      <div className="card overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="section-title">Week {week} — All DAs</h3>
-          {scorecards.length === 0 && (
-            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-              No data yet — sync needed
-            </span>
-          )}
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr>
-                {['DA Name', 'Standing', 'DCR %', 'Quality', 'Safety', 'DNR DPMO', 'DSB DPMO', 'Trend'].map(h => (
-                  <th key={h} className="table-header text-left">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {scorecards.map(s => (
-                <tr key={s.id} className="hover:bg-gray-50">
-                  <td className="table-cell">
-                    <Link href={`/staff/da/${s.da.id}`} className="font-medium hover:text-blue-600">
-                      {s.da.name}
-                    </Link>
-                  </td>
-                  <td className="table-cell">
-                    <span className={`badge ${STANDING_COLORS[s.standing] ?? 'badge-gray'}`}>
-                      {formatStanding(s.standing)}
-                    </span>
-                  </td>
-                  <td className="table-cell">
-                    <ScoreBar score={s.deliveryScore} />
-                  </td>
-                  <td className="table-cell">
-                    <ScoreBar score={s.qualityScore} />
-                  </td>
-                  <td className="table-cell">
-                    <ScoreBar score={s.safetyScore} />
-                  </td>
-                  <td className="table-cell">
-                    <span className={s.dnrRate > 5 ? 'text-red-600 font-medium' : 'text-gray-600'}>
-                      {s.dnrRate.toFixed(1)}%
-                    </span>
-                  </td>
-                  <td className="table-cell">
-                    <span className={s.dsbRate < 90 ? 'text-amber-600 font-medium' : 'text-gray-600'}>
-                      {s.dsbRate.toFixed(1)}%
-                    </span>
-                  </td>
-                  <td className="table-cell">
-                    <TrendIcon score={s.deliveryScore} />
-                  </td>
-                </tr>
-              ))}
-              {scorecards.length === 0 && (
+      {/* DA detail table for selected week */}
+      {latestWeek && (
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <h3 className="section-title">Week {latestWeek} — Individual DA Scores</h3>
+            <span className="text-xs text-gray-400">{scorecards.length} DAs</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-sm text-gray-400">
-                    <div className="space-y-2">
-                      <p>No scorecard data for week {week}</p>
-                      <p className="text-xs">
-                        Create your Amazon sync account and run the initial sync to populate this table automatically.
-                      </p>
-                    </div>
-                  </td>
+                  {['DA Name', 'Standing', 'DCR %', 'Quality', 'Safety', 'DNR DPMO', 'DSB Rate', 'Trend'].map(h => (
+                    <th key={h} className="table-header text-left">{h}</th>
+                  ))}
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {scorecards.map(s => (
+                  <tr key={s.id} className="hover:bg-gray-50">
+                    <td className="table-cell">
+                      <Link href={`/da/${s.da.id}`} className="font-medium hover:text-blue-600">
+                        {s.da.name}
+                      </Link>
+                    </td>
+                    <td className="table-cell">
+                      <span className={`badge ${STANDING_BADGE[s.standing] ?? 'badge-gray'}`}>
+                        {formatStanding(s.standing)}
+                      </span>
+                    </td>
+                    <td className="table-cell">
+                      <ScoreBar score={s.deliveryScore} />
+                    </td>
+                    <td className="table-cell">
+                      <ScoreBar score={s.qualityScore} />
+                    </td>
+                    <td className="table-cell">
+                      <ScoreBar score={s.safetyScore} />
+                    </td>
+                    <td className="table-cell text-sm">
+                      <span className={s.dnrRate > 5 ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                        {s.dnrRate.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="table-cell text-sm">
+                      <span className={s.dsbRate < 90 ? 'text-amber-600 font-medium' : 'text-gray-600'}>
+                        {s.dsbRate.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="table-cell">
+                      <TrendIcon score={s.deliveryScore} />
+                    </td>
+                  </tr>
+                ))}
+                {scorecards.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="text-center py-12 text-sm text-gray-400">
+                      No DA scorecard entries for week {latestWeek}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

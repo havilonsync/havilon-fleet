@@ -46,47 +46,45 @@ export async function runMorningSync() {
   }
 }
 
-export async function runNightlySync() {
+export async function runNightlySync(): Promise<{ synced: number; matched: number; unmatched: string[] }> {
   console.log('🌙 Running nightly sync (scorecards)...')
   try {
     const result = await syncScorecardsToDatabase()
     await logSync('NIGHTLY_SCORECARDS', result)
 
     // Also re-sync last week in case of late data updates
-    const lastWeekResult = await syncScorecardsToDatabase(
-      formatLastWeek()
-    )
+    const lastWeekResult = await syncScorecardsToDatabase(formatLastWeek())
     await logSync('NIGHTLY_SCORECARDS_PREV', lastWeekResult)
 
-    // ── Send weekly scorecard texts ──────────────────────────────────────────
-  try {
-    const { getISOWeek, getYear, subWeeks } = await import('date-fns')
-    const lastWeek = subWeeks(new Date(), 1)
-    const weekStr = `${getYear(lastWeek)}-W${String(getISOWeek(lastWeek)).padStart(2, '0')}`
+    // Send weekly scorecard texts (non-critical)
+    try {
+      const { getISOWeek, getYear, subWeeks } = await import('date-fns')
+      const lastWeek = subWeeks(new Date(), 1)
+      const weekStr = `${getYear(lastWeek)}-W${String(getISOWeek(lastWeek)).padStart(2, '0')}`
 
-    const scorecards = await prisma.dAScorecard.findMany({
-      where: { week: weekStr },
-      include: { da: { select: { name: true, phone: true } } },
-    })
+      const scorecards = await prisma.dAScorecard.findMany({
+        where: { week: weekStr },
+        include: { da: { select: { name: true, phone: true } } },
+      })
 
-    if (scorecards.length > 0) {
-      const results = scorecards
-        .filter(sc => sc.da?.phone)
-        .map(sc => ({ da: sc.da, scorecard: sc }))
-
-      const smsResult = await sendWeeklyScorecardTexts(results)
-      console.log(`📱 SMS: ${smsResult.sent} sent, ${smsResult.skipped} skipped, ${smsResult.failed} failed`)
+      if (scorecards.length > 0) {
+        const smsTargets = scorecards
+          .filter(sc => sc.da?.phone)
+          .map(sc => ({ da: sc.da, scorecard: sc }))
+        const smsResult = await sendWeeklyScorecardTexts(smsTargets)
+        console.log(`📱 SMS: ${smsResult.sent} sent, ${smsResult.skipped} skipped, ${smsResult.failed} failed`)
+      }
+    } catch (smsErr) {
+      console.error('SMS send failed (non-critical):', smsErr)
     }
-  } catch (smsErr) {
-    console.error('SMS send failed (non-critical):', smsErr)
-  }
 
-  console.log('✅ Nightly sync complete')
+    console.log('✅ Nightly sync complete')
+    return result
   } catch (err: any) {
     await logSync('NIGHTLY_SCORECARDS', null, err.message)
     console.error('❌ Nightly sync failed:', err.message)
-    // Force re-auth on next run
     invalidateSession()
+    return { synced: 0, matched: 0, unmatched: [] }
   }
 }
 
@@ -187,7 +185,7 @@ function getISOWeek(date: Date): number {
 if (require.main === module) {
   const arg = process.argv[2]
 
-  const jobs: Record<string, () => Promise<void>> = {
+  const jobs: Record<string, () => Promise<any>> = {
     morning: runMorningSync,
     nightly: runNightlySync,
     weekly: runWeeklySync,

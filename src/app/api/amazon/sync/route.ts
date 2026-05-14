@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
   try {
     // Dynamic import to avoid build-time issues
     const { runNightlySync } = await import('@/services/amazon/sync-runner')
-    await runNightlySync()
-    return NextResponse.json({ success: true, message: 'Amazon sync completed' })
+    const result = await runNightlySync()
+    return NextResponse.json({ success: true, ...result })
   } catch (err: any) {
     console.error('Amazon sync failed:', err)
     return NextResponse.json({ error: err.message ?? 'Sync failed' }, { status: 500 })
