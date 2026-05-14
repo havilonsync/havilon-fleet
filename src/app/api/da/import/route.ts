@@ -3,19 +3,20 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 
-// Flexible column aliases — covers Amazon DSP portal and common HR/fleet CSV exports
+// Column aliases — Amazon DSP portal exact names listed first, then fallbacks
 const COLUMN_MAP: Record<string, string[]> = {
-  name:          ['name', 'full name', 'driver name', 'da name', 'employee name', 'associate name'],
+  name:          ['name and id', 'name', 'full name', 'driver name', 'da name', 'employee name', 'associate name'],
+  transponderId: ['transponderid', 'transponder id', 'transponder #', 'transponder number', 'transponder'],
+  dlExpiry:      ['id expiration', 'dl expiry', 'dl expiration', 'license expiry', 'license expiration', 'expiration date'],
+  phone:         ['personal phone number', 'phone', 'phone number', 'mobile', 'cell', 'cell phone', 'mobile number'],
+  workPhone:     ['work phone number', 'work phone', 'office phone'],
   email:         ['email', 'email address', 'work email', 'e-mail'],
-  phone:         ['phone', 'phone number', 'mobile', 'cell', 'cell phone', 'mobile number'],
+  status:        ['status', 'employment status', 'da status'],
+  // kept for non-Amazon CSV fallback
   adpId:         ['adp id', 'adp#', 'adp number', 'employee id', 'ee id', 'employee #'],
   badgeId:       ['badge id', 'badge #', 'badge number', 'badge'],
-  transponderId: ['transponder id', 'transponder #', 'transponder', 'transponder number'],
-  driverLicense: ['driver license', 'dl number', 'license number', 'dl#', 'license #', 'drivers license'],
-  dlExpiry:      ['dl expiry', 'dl expiration', 'license expiry', 'license expiration', 'dl exp', 'dl exp date', 'expiration date'],
   hireDate:      ['hire date', 'start date', 'employment date', 'date of hire', 'hired'],
   zipCode:       ['zip code', 'zip', 'postal code'],
-  status:        ['status', 'employment status', 'da status'],
 }
 
 function findColumn(headers: string[], aliases: string[]): number {
@@ -108,22 +109,26 @@ export async function POST(req: NextRequest) {
 
   for (let i = 0; i < rows.length; i++) {
     const row  = rows[i]
-    const name = get(row, 'name')
+    // Amazon exports "Name and ID" as "John Smith (DA-12345)" — strip the ID suffix
+    const rawName = get(row, 'name')
+    const name = rawName.replace(/\s*\(.*?\)\s*$/, '').trim()
 
     if (!name) {
       errors.push({ row: i + 2, name: '(empty)', reason: 'Missing name — row skipped' })
       continue
     }
 
-    const email = get(row, 'email') || undefined
-    const adpId = get(row, 'adpId') || undefined
+    const email         = get(row, 'email')         || undefined
+    const transponderId = get(row, 'transponderId') || undefined
+    const adpId         = get(row, 'adpId')         || undefined
 
-    // Skip duplicates by email (if provided) or adpId
+    // Skip duplicates by email or TransporterID
     const existing = await prisma.dA.findFirst({
       where: {
         OR: [
-          ...(email  ? [{ email }]  : []),
-          ...(adpId  ? [{ adpId }]  : []),
+          ...(email         ? [{ email }]         : []),
+          ...(transponderId ? [{ transponderId }] : []),
+          ...(adpId         ? [{ adpId }]         : []),
         ],
       },
     })
@@ -141,12 +146,11 @@ export async function POST(req: NextRequest) {
         data: {
           name,
           email,
-          phone:         get(row, 'phone')         || undefined,
+          phone:         get(row, 'phone')    || undefined,
           adpId,
-          badgeId:       get(row, 'badgeId')       || undefined,
-          transponderId: get(row, 'transponderId') || undefined,
-          driverLicense: get(row, 'driverLicense') || undefined,
-          zipCode:       get(row, 'zipCode')       || undefined,
+          badgeId:       get(row, 'badgeId')  || undefined,
+          transponderId,
+          zipCode:       get(row, 'zipCode')  || undefined,
           dlExpiry,
           hireDate,
           status:        status as any,

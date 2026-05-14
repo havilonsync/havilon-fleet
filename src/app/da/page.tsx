@@ -156,7 +156,7 @@ export default async function DAPage() {
           <table className="w-full">
             <thead>
               <tr>
-                {['Name', 'ADP ID', 'Badge ID', 'Transponder', 'Email', 'Phone', 'Off Days', 'Hire Date', 'DL Expiry', 'Score', 'Alerts', 'Status'].map(h => (
+                {['Name and ID', 'TransporterID', 'Personal Phone Number', 'Work Phone Number', 'Email', 'ID expiration', 'Off Days', 'Score', 'Alerts', 'Status'].map(h => (
                   <th key={h} className="table-header text-left">{h}</th>
                 ))}
               </tr>
@@ -168,36 +168,36 @@ export default async function DAPage() {
 
                 return (
                   <tr key={da.id} className={`hover:bg-gray-50 ${da.status === 'TERMINATED' ? 'opacity-50' : ''}`}>
+                    {/* Name and ID */}
                     <td className="table-cell">
                       <Link href={`/da/${da.id}`} className="font-medium text-blue-600 hover:underline">
                         {da.name}
                       </Link>
+                      {da.adpId && <div className="text-xs text-gray-400 font-mono">{da.adpId}</div>}
                     </td>
+                    {/* TransporterID */}
                     <td className="table-cell font-mono text-xs text-gray-600">
-                      {da.adpId ?? <span className="text-gray-300">—</span>}
+                      {da.transponderId ?? <span className="text-gray-300">—</span>}
                     </td>
-                    <td className="table-cell font-mono text-xs text-gray-600">
-                      {da.badgeId ?? <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="table-cell font-mono text-xs text-gray-400">
-                      {da.transponderId ? da.transponderId.slice(0, 12) + '…' : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="table-cell text-xs text-gray-600">
-                      {da.email ?? <span className="text-gray-300">—</span>}
-                    </td>
+                    {/* Personal Phone Number */}
                     <td className="table-cell text-sm">
                       {da.phone ?? <span className="text-gray-300">—</span>}
                     </td>
+                    {/* Work Phone Number — not a separate field, shown as — */}
+                    <td className="table-cell text-gray-300 text-sm">—</td>
+                    {/* Email */}
                     <td className="table-cell text-xs text-gray-600">
-                      {da.offDays?.length > 0 ? da.offDays.join(', ') : <span className="text-gray-300">—</span>}
+                      {da.email ?? <span className="text-gray-300">—</span>}
                     </td>
-                    <td className="table-cell text-xs text-gray-600">
-                      {da.hireDate ? new Date(da.hireDate).toLocaleDateString() : <span className="text-gray-300">—</span>}
-                    </td>
+                    {/* ID expiration (DL Expiry) */}
                     <td className="table-cell">
                       <span className={`badge ${dlExpiryColor(days)}`}>
                         {dlExpiryLabel(days, da.dlExpiry)}
                       </span>
+                    </td>
+                    {/* Off Days — internal */}
+                    <td className="table-cell text-xs text-gray-600">
+                      {da.offDays?.length > 0 ? da.offDays.join(', ') : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="table-cell">
                       {latestScore ? (
@@ -233,7 +233,7 @@ export default async function DAPage() {
               })}
               {das.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="text-center py-12 text-sm text-gray-400">
+                  <td colSpan={10} className="text-center py-12 text-sm text-gray-400">
                     No DAs yet — click "Sync from Amazon" to import your active roster
                   </td>
                 </tr>

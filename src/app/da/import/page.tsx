@@ -10,10 +10,10 @@ interface ImportResult {
   errors:   { row: number; name: string; reason: string }[]
 }
 
-const TEMPLATE_HEADERS = 'Name,Email,Phone,ADP ID,Badge ID,Transponder ID,Driver License,DL Expiry,Hire Date,Zip Code,Status'
+const TEMPLATE_HEADERS = 'Name and ID,TransporterID,Position,Qualifications,ID expiration,Personal Phone Number,Work Phone Number,Email,Status'
 const TEMPLATE_ROWS = [
-  'John Smith,jsmith@example.com,555-0101,EE001,B-1001,T-2001,D1234567,2026-08-15,2022-03-01,30301,Active',
-  'Maria Garcia,mgarcia@example.com,555-0102,EE002,B-1002,T-2002,D7654321,2025-12-01,2021-06-15,30302,Active',
+  'John Smith (DA-12345),T-2001,Delivery Associate,,2026-08-15,555-0101,,jsmith@example.com,Active',
+  'Maria Garcia (DA-67890),T-2002,Delivery Associate,,2025-12-01,555-0102,,mgarcia@example.com,Active',
 ]
 const TEMPLATE_CSV = [TEMPLATE_HEADERS, ...TEMPLATE_ROWS].join('\n')
 
@@ -120,8 +120,8 @@ export default function DAImportPage() {
           <li>Upload the downloaded file below</li>
         </ol>
         <p className="text-xs text-blue-700 mt-3">
-          Accepted columns: <span className="font-mono">Name, Email, Phone, ADP ID, Badge ID, Transponder ID, Driver License, DL Expiry, Hire Date, Zip Code, Status</span>
-          <br />DAs already in the roster (matched by email or ADP ID) are skipped automatically.
+          Matches Amazon's exact columns: <span className="font-mono">Name and ID, TransporterID, Position, Qualifications, ID expiration, Personal Phone Number, Work Phone Number, Email, Status</span>
+          <br />DAs already in the roster (matched by email or TransporterID) are skipped automatically.
         </p>
       </div>
 
