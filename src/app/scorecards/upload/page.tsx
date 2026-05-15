@@ -95,7 +95,7 @@ export default async function ScorecardUploadPage() {
         <h1 className="text-xl font-semibold text-gray-900">Weekly Scorecard Files</h1>
         <p className="text-sm text-gray-500 mt-0.5">
           Showing checklist for week <span className="font-mono font-medium">{week}</span>
-          {mostRecentFile ? ' (most recent upload)' : ' (last week)'}
+          {recentFiles.length > 0 ? ' (most recent upload)' : ' (last week)'}
         </p>
       </div>
 
