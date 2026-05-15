@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { sendTipNotification } from '@/lib/email'
 
 
 export async function POST(req: NextRequest) {
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest) {
       message:  message.trim(),
     },
   })
+
+  // Send email to tip line address (fire-and-forget — don't block the response)
+  sendTipNotification({ tipNumber, category: category ?? 'OTHER', message: message.trim() }).catch(() => {})
 
   // Notify owner immediately
   const owners = await prisma.user.findMany({
