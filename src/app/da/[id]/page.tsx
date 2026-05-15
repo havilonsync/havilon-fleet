@@ -151,7 +151,7 @@ export default function DAProfilePage() {
               <h1 className="text-xl font-semibold text-gray-900">{da.name}</h1>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className={`badge ${STATUS_COLORS[da.status] ?? 'badge-gray'}`}>
-                  {da.status === 'INACTIVE' ? 'Onboarding' : da.status.toLowerCase().replace('_', ' ')}
+                  {da.status.toLowerCase().replace('_', ' ')}
                 </span>
                 {da.badgeId && <span className="badge badge-gray">Badge: {da.badgeId}</span>}
                 {da.adpId && <span className="badge badge-gray">ADP: {da.adpId}</span>}
@@ -282,6 +282,21 @@ export default function DAProfilePage() {
             <h3 className="font-medium text-gray-900 flex items-center gap-2">
               <Phone size={14} className="text-blue-600" /> Contact Info
             </h3>
+            <div>
+              <p className="label">Status</p>
+              {editing ? (
+                <select className="select" value={form.status ?? 'ACTIVE'} onChange={e => set('status', e.target.value)}>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                  <option value="ON_LEAVE">On Leave</option>
+                  <option value="TERMINATED">Terminated</option>
+                </select>
+              ) : (
+                <span className={`badge ${STATUS_COLORS[da.status] ?? 'badge-gray'}`}>
+                  {da.status.toLowerCase().replace('_', ' ')}
+                </span>
+              )}
+            </div>
             <Field label="Email"  value={form.email}  editing={editing} onChange={v => set('email', v)} />
             <Field label="Phone"  value={form.phone}  editing={editing} onChange={v => set('phone', v)} />
             <Field label="Zip Code" value={form.zipCode} editing={editing} onChange={v => set('zipCode', v)} />

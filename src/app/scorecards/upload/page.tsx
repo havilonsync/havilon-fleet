@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
@@ -26,14 +28,31 @@ export default async function ScorecardUploadPage() {
   const session = await getServerSession(authOptions) as any
   if (!session) redirect('/auth/signin')
 
-  // Use the most recent week that has any upload — fall back to last week.
-  // This prevents the "current week vs file week" mismatch where files are
-  // always for the just-completed week, not the current in-progress week.
-  const mostRecentFile = await prisma.scorecardFile.findFirst({
+  // Pick the week with the most distinct file types uploaded — this is the
+  // week the user is actively working on. Falls back to the single most
+  // recent file's week, then to last week.
+  const recentFiles = await prisma.scorecardFile.findMany({
     orderBy: { createdAt: 'desc' },
-    select:  { week: true },
+    select:  { week: true, fileType: true },
+    take:    50,
   })
-  const week = mostRecentFile?.week ?? lastWeekStr()
+
+  let week = lastWeekStr()
+  if (recentFiles.length > 0) {
+    const weekScore = new Map<string, Set<string>>()
+    for (const f of recentFiles) {
+      if (!weekScore.has(f.week)) weekScore.set(f.week, new Set())
+      weekScore.get(f.week)!.add(f.fileType)
+    }
+    // Prefer the week with the most distinct file types; tie-break by recency
+    // (recentFiles is already sorted desc so the first occurrence wins ties)
+    let bestWeek = recentFiles[0].week
+    let bestCount = weekScore.get(bestWeek)?.size ?? 0
+    for (const [w, types] of weekScore) {
+      if (types.size > bestCount) { bestWeek = w; bestCount = types.size }
+    }
+    week = bestWeek
+  }
 
   // All uploads for the active checklist week
   const weekUploads = await prisma.scorecardFile.findMany({

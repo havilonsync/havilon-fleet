@@ -51,7 +51,7 @@ export default async function DAPage() {
   })
 
   const active      = das.filter(d => d.status === 'ACTIVE').length
-  const onboarding  = das.filter(d => d.status === 'INACTIVE').length
+  const inactive    = das.filter(d => d.status === 'INACTIVE').length
   const terminated  = das.filter(d => d.status === 'TERMINATED').length
 
   // DL expiry alerts
@@ -75,7 +75,7 @@ export default async function DAPage() {
             DA Roster
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Synced from Amazon DSP Portal · {active} active · {onboarding} onboarding
+            Synced from Amazon DSP Portal · {active} active · {inactive} inactive
           </p>
         </div>
         <div className="flex gap-2">
@@ -120,8 +120,8 @@ export default async function DAPage() {
           <p className="text-2xl font-semibold text-green-600">{active}</p>
         </div>
         <div className="stat-card border-blue-200 bg-blue-50">
-          <p className="text-xs text-gray-500 mb-1">Onboarding</p>
-          <p className="text-2xl font-semibold text-blue-600">{onboarding}</p>
+          <p className="text-xs text-gray-500 mb-1">Inactive</p>
+          <p className="text-2xl font-semibold text-blue-600">{inactive}</p>
         </div>
         <div className="stat-card border-red-200 bg-red-50">
           <p className="text-xs text-gray-500 mb-1">DL Expiring</p>
@@ -146,7 +146,7 @@ export default async function DAPage() {
             <select className="select text-xs py-1 w-36">
               <option value="">All Status</option>
               <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Onboarding</option>
+              <option value="INACTIVE">Inactive</option>
               <option value="ON_LEAVE">On Leave</option>
               <option value="TERMINATED">Terminated</option>
             </select>
@@ -225,7 +225,7 @@ export default async function DAPage() {
                     </td>
                     <td className="table-cell">
                       <span className={`badge ${STATUS_COLORS[da.status] ?? 'badge-gray'}`}>
-                        {da.status === 'INACTIVE' ? 'Onboarding' : da.status.toLowerCase().replace('_', ' ')}
+                        {da.status.toLowerCase().replace('_', ' ')}
                       </span>
                     </td>
                   </tr>
