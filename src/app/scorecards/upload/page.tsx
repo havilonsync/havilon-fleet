@@ -2,57 +2,62 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, CheckCircle, Clock, FileText, Info } from 'lucide-react'
-import { getISOWeek, getYear } from 'date-fns'
+import { ArrowLeft, CheckCircle, Clock, Info } from 'lucide-react'
+import { getISOWeek, getYear, subWeeks } from 'date-fns'
 import prisma from '@/lib/prisma'
 import UploadForm from '@/components/scorecards/UploadForm'
 
-// The 7 file types Amazon DSP requires for the weekly scorecard
-const CHECKLIST: { type: string; label: string; hint: string; ext: string; critical: boolean }[] = [
-  { type: 'weekly_overview',  label: 'Weekly Overview',             hint: 'DSP_Overview_Dashboard_HAVL_DDF4_2026-Wnn.csv', ext: 'CSV',  critical: true  },
-  { type: 'weekly_trailing',  label: 'Weekly Overview 6-Week',      hint: '6-week trailing CSV with historical DA scores', ext: 'CSV',  critical: false },
-  { type: 'scorecard_pdf',    label: 'Scorecard',                   hint: 'Weekly Scorecard PDF (saved for reference)',    ext: 'PDF',  critical: false },
-  { type: 'pod_quality',      label: 'POD Quality',                 hint: 'Proof of Delivery quality report PDF',          ext: 'PDF',  critical: false },
-  { type: 'pps_daily',        label: 'PPS Daily',                   hint: 'Packages Per Stop daily performance CSV',       ext: 'CSV',  critical: false },
-  { type: 'dvic',             label: 'DVIC',                        hint: 'Daily Vehicle Inspection Checklist XLSX',       ext: 'XLSX', critical: false },
-  { type: 'at_stop_safety',   label: 'At-Stop Safety',              hint: 'At-stop safety scores per DA CSV',             ext: 'CSV',  critical: true  },
+export const CHECKLIST: { type: string; label: string; hint: string; ext: string; critical: boolean }[] = [
+  { type: 'weekly_overview',  label: 'Weekly Overview',          hint: 'DSP_Overview_Dashboard_HAVL_DDF4_2026-Wnn.csv',   ext: 'CSV',  critical: true  },
+  { type: 'weekly_trailing',  label: 'Weekly Overview 6-Week',   hint: 'Trailing_Six_Week CSV',                            ext: 'CSV',  critical: true  },
+  { type: 'at_stop_safety',   label: 'At-Stop Safety',           hint: 'At-stop / safety scores per DA',                  ext: 'CSV',  critical: true  },
+  { type: 'pps_daily',        label: 'PPS Daily',                hint: 'Packages Per Stop daily CSV',                     ext: 'CSV',  critical: false },
+  { type: 'dvic',             label: 'DVIC',                     hint: 'Daily Vehicle Inspection XLSX',                   ext: 'XLSX', critical: false },
+  { type: 'scorecard_pdf',    label: 'Scorecard',                hint: 'Weekly Scorecard PDF (reference only)',            ext: 'PDF',  critical: false },
+  { type: 'pod_quality',      label: 'POD Quality',              hint: 'POD quality report PDF (reference only)',          ext: 'PDF',  critical: false },
 ]
 
-function currentWeekStr(): string {
-  const now = new Date()
-  return `${getYear(now)}-W${String(getISOWeek(now)).padStart(2, '0')}`
+function lastWeekStr(): string {
+  const d = subWeeks(new Date(), 1)
+  return `${getYear(d)}-W${String(getISOWeek(d)).padStart(2, '0')}`
 }
 
 export default async function ScorecardUploadPage() {
   const session = await getServerSession(authOptions) as any
   if (!session) redirect('/auth/signin')
 
-  const week = currentWeekStr()
+  // Use the most recent week that has any upload — fall back to last week.
+  // This prevents the "current week vs file week" mismatch where files are
+  // always for the just-completed week, not the current in-progress week.
+  const mostRecentFile = await prisma.scorecardFile.findFirst({
+    orderBy: { createdAt: 'desc' },
+    select:  { week: true },
+  })
+  const week = mostRecentFile?.week ?? lastWeekStr()
 
-  // Fetch what has been uploaded for this week (and recent weeks)
-  const recentUploads = await prisma.scorecardFile.findMany({
-    where: { week },
-    select: { fileType: true, filename: true, rowsImported: true, rowsSkipped: true, createdAt: true },
+  // All uploads for the active checklist week
+  const weekUploads = await prisma.scorecardFile.findMany({
+    where:   { week },
+    select:  { fileType: true, filename: true, rowsImported: true, createdAt: true },
     orderBy: { createdAt: 'desc' },
   })
 
-  // Most recent upload per file type this week
-  const uploadedTypes = new Map<string, typeof recentUploads[0]>()
-  for (const u of recentUploads) {
+  // Most recent upload per file type
+  const uploadedTypes = new Map<string, typeof weekUploads[0]>()
+  for (const u of weekUploads) {
     if (!uploadedTypes.has(u.fileType)) uploadedTypes.set(u.fileType, u)
   }
 
-  // Past weeks with any uploads (for the history section)
-  const pastUploads = await prisma.scorecardFile.findMany({
-    where: { week: { not: week } },
-    select: { week: true, fileType: true, filename: true, rowsImported: true, createdAt: true },
+  // All other weeks (for the history section)
+  const allOtherUploads = await prisma.scorecardFile.findMany({
+    where:   { week: { not: week } },
+    select:  { week: true, fileType: true, filename: true, rowsImported: true, createdAt: true },
     orderBy: [{ week: 'desc' }, { createdAt: 'desc' }],
-    take: 40,
+    take:    60,
   })
 
-  // Group past uploads by week
-  const pastByWeek = new Map<string, typeof pastUploads>()
-  for (const u of pastUploads) {
+  const pastByWeek = new Map<string, typeof allOtherUploads>()
+  for (const u of allOtherUploads) {
     if (!pastByWeek.has(u.week)) pastByWeek.set(u.week, [])
     pastByWeek.get(u.week)!.push(u)
   }
@@ -70,8 +75,8 @@ export default async function ScorecardUploadPage() {
         </Link>
         <h1 className="text-xl font-semibold text-gray-900">Weekly Scorecard Files</h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          Upload the 7 files from Amazon DSP Portal to populate DA scorecards for week{' '}
-          <span className="font-mono font-medium">{week}</span>
+          Showing checklist for week <span className="font-mono font-medium">{week}</span>
+          {mostRecentFile ? ' (most recent upload)' : ' (last week)'}
         </p>
       </div>
 
@@ -92,11 +97,11 @@ export default async function ScorecardUploadPage() {
             </div>
             {criticalDone === criticalTotal ? (
               <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded p-2 flex items-center gap-1.5">
-                <CheckCircle size={12} /> Key files uploaded — scorecards ready
+                <CheckCircle size={12} /> All required files uploaded
               </p>
             ) : (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 flex items-center gap-1.5">
-                <Info size={12} /> {criticalTotal - criticalDone} key file(s) still needed
+                <Info size={12} /> {criticalTotal - criticalDone} required file(s) still needed
               </p>
             )}
           </div>
@@ -117,7 +122,7 @@ export default async function ScorecardUploadPage() {
                       <Clock size={18} className={`flex-shrink-0 mt-0.5 ${item.critical ? 'text-amber-400' : 'text-gray-300'}`} />
                     )}
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className={`text-sm font-medium ${upload ? 'text-gray-900' : 'text-gray-500'}`}>
                           {item.label}
                         </span>
@@ -130,7 +135,7 @@ export default async function ScorecardUploadPage() {
                         <p className="text-xs text-green-600 truncate mt-0.5">
                           {upload.filename}
                           {upload.rowsImported > 0 && ` · ${upload.rowsImported} DAs`}
-                          {' · '}{new Date(upload.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {' · '}{new Date(upload.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </p>
                       ) : (
                         <p className="text-xs text-gray-400 mt-0.5">{item.hint}</p>
@@ -149,12 +154,13 @@ export default async function ScorecardUploadPage() {
 
           <div className="card p-4 bg-blue-50 border-blue-200">
             <p className="text-xs font-medium text-blue-900 mb-1 flex items-center gap-1.5">
-              <Info size={13} /> Upload tip
+              <Info size={13} /> Upload tips
             </p>
             <p className="text-xs text-blue-800">
-              The week is auto-detected from the filename (e.g. <span className="font-mono">..._2026-W19.csv</span>).
-              Upload files one at a time — each upload merges data into the same scorecard week.
-              DAs are matched by name or Transporter ID, so make sure your roster is up to date first.
+              Always select the correct file type from the dropdown before uploading —
+              Amazon filenames don&apos;t always match what the portal expects.
+              The week is detected from the filename (e.g. <span className="font-mono">..._2026-W19.csv</span>).
+              The checklist updates automatically after each successful upload.
             </p>
           </div>
         </div>
@@ -179,12 +185,9 @@ export default async function ScorecardUploadPage() {
                     {CHECKLIST.map(item => {
                       const f = files.find(u => u.fileType === item.type)
                       return (
-                        <span
-                          key={item.type}
-                          className={`flex items-center gap-1 text-xs rounded px-2 py-0.5 ${
-                            f ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-gray-50 border border-gray-200 text-gray-400'
-                          }`}
-                        >
+                        <span key={item.type} className={`flex items-center gap-1 text-xs rounded px-2 py-0.5 ${
+                          f ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-gray-50 border border-gray-200 text-gray-400'
+                        }`}>
                           {f ? <CheckCircle size={10} /> : <Clock size={10} />}
                           {item.label}
                         </span>

@@ -222,14 +222,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
   }
 
-  const formData = await req.formData()
-  const file     = formData.get('file') as File | null
+  const formData       = await req.formData()
+  const file           = formData.get('file') as File | null
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
-  const filename     = file.name
-  const extension    = filename.split('.').pop()?.toLowerCase() ?? ''
-  const fileType     = detectFileType(filename)
-  const weekFallback = weekFromFilename(filename)
+  const filename      = file.name
+  const extension     = filename.split('.').pop()?.toLowerCase() ?? ''
+  const chosenType    = (formData.get('fileType') as string | null)?.trim() ?? ''
+  const fileType      = chosenType || detectFileType(filename)
+  const weekFallback  = weekFromFilename(filename)
 
   let headers: string[]   = []
   let rows:    string[][] = []

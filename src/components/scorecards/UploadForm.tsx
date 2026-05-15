@@ -2,7 +2,7 @@
 
 import { useState, useRef, ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, CheckCircle, AlertTriangle, FileText } from 'lucide-react'
+import { Upload, CheckCircle, AlertTriangle } from 'lucide-react'
 
 interface UploadResult {
   imported:        number
@@ -21,13 +21,24 @@ const FIELD_LABELS: Record<string, string> = {
   safetyScore: 'Safety', dnrRate: 'DNR Rate', dsbRate: 'DSB Rate',
 }
 
+const FILE_TYPES = [
+  { value: 'weekly_overview',  label: 'Weekly Overview',        ext: 'CSV'  },
+  { value: 'weekly_trailing',  label: 'Weekly Overview 6-Week', ext: 'CSV'  },
+  { value: 'at_stop_safety',   label: 'At-Stop Safety',         ext: 'CSV'  },
+  { value: 'pps_daily',        label: 'PPS Daily',              ext: 'CSV'  },
+  { value: 'dvic',             label: 'DVIC',                   ext: 'XLSX' },
+  { value: 'scorecard_pdf',    label: 'Scorecard',              ext: 'PDF'  },
+  { value: 'pod_quality',      label: 'POD Quality',            ext: 'PDF'  },
+]
+
 export default function UploadForm() {
-  const router   = useRouter()
-  const fileRef  = useRef<HTMLInputElement>(null)
-  const [file,    setFile]    = useState<File | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [result,  setResult]  = useState<UploadResult | null>(null)
-  const [error,   setError]   = useState<string | null>(null)
+  const router    = useRouter()
+  const fileRef   = useRef<HTMLInputElement>(null)
+  const [file,     setFile]     = useState<File | null>(null)
+  const [fileType, setFileType] = useState<string>('')
+  const [loading,  setLoading]  = useState(false)
+  const [result,   setResult]   = useState<UploadResult | null>(null)
+  const [error,    setError]    = useState<string | null>(null)
 
   const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -38,12 +49,13 @@ export default function UploadForm() {
   }
 
   const handleUpload = async () => {
-    if (!file) return
+    if (!file || !fileType) return
     setLoading(true)
     setError(null)
     setResult(null)
     const form = new FormData()
     form.append('file', file)
+    form.append('fileType', fileType)
     try {
       const res  = await fetch('/api/scorecards/upload', { method: 'POST', body: form })
       const data = await res.json()
@@ -63,7 +75,7 @@ export default function UploadForm() {
   }
 
   const reset = () => {
-    setFile(null); setResult(null); setError(null)
+    setFile(null); setFileType(''); setResult(null); setError(null)
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -73,18 +85,43 @@ export default function UploadForm() {
 
       {!result ? (
         <>
-          <div
-            className="border-2 border-dashed border-gray-200 rounded-xl p-10 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
-            onClick={() => fileRef.current?.click()}
-          >
-            <Upload size={28} className="mx-auto text-gray-400 mb-3" />
-            <p className="text-sm font-medium text-gray-700">
-              {file ? file.name : 'Click to select a file'}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              {file ? `${(file.size / 1024).toFixed(1)} KB` : 'CSV, XLSX, or PDF — system auto-detects the file type'}
-            </p>
-            <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,.pdf" className="hidden" onChange={handleFile} />
+          {/* Step 1: Select file type */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              1. Select the file type
+            </label>
+            <select
+              value={fileType}
+              onChange={e => setFileType(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">— choose a file type —</option>
+              {FILE_TYPES.map(t => (
+                <option key={t.value} value={t.value}>
+                  {t.label} ({t.ext})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Step 2: Pick file */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              2. Choose the file
+            </label>
+            <div
+              className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+              onClick={() => fileRef.current?.click()}
+            >
+              <Upload size={24} className="mx-auto text-gray-400 mb-2" />
+              <p className="text-sm font-medium text-gray-700">
+                {file ? file.name : 'Click to select a file'}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {file ? `${(file.size / 1024).toFixed(1)} KB` : 'CSV, XLSX, or PDF'}
+              </p>
+              <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,.pdf" className="hidden" onChange={handleFile} />
+            </div>
           </div>
 
           {error && (
@@ -93,9 +130,15 @@ export default function UploadForm() {
             </div>
           )}
 
+          {file && !fileType && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+              Select a file type above before uploading.
+            </p>
+          )}
+
           {file && (
             <div className="flex gap-3">
-              <button onClick={handleUpload} disabled={loading} className="btn-primary">
+              <button onClick={handleUpload} disabled={loading || !fileType} className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
                 {loading ? 'Processing…' : `Import "${file.name}"`}
               </button>
               <button onClick={reset} className="btn-secondary">Clear</button>
