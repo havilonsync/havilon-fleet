@@ -28,31 +28,15 @@ export default async function ScorecardUploadPage() {
   const session = await getServerSession(authOptions) as any
   if (!session) redirect('/auth/signin')
 
-  // Pick the week with the most distinct file types uploaded — this is the
-  // week the user is actively working on. Falls back to the single most
-  // recent file's week, then to last week.
+  // Use the most recently uploaded file's week — after each upload the
+  // checklist immediately reflects that week. Falls back to last week.
   const recentFiles = await prisma.scorecardFile.findMany({
     orderBy: { createdAt: 'desc' },
     select:  { week: true, fileType: true },
-    take:    50,
+    take:    1,
   })
 
-  let week = lastWeekStr()
-  if (recentFiles.length > 0) {
-    const weekScore = new Map<string, Set<string>>()
-    for (const f of recentFiles) {
-      if (!weekScore.has(f.week)) weekScore.set(f.week, new Set())
-      weekScore.get(f.week)!.add(f.fileType)
-    }
-    // Prefer the week with the most distinct file types; tie-break by recency
-    // (recentFiles is already sorted desc so the first occurrence wins ties)
-    let bestWeek = recentFiles[0].week
-    let bestCount = weekScore.get(bestWeek)?.size ?? 0
-    for (const [w, types] of weekScore) {
-      if (types.size > bestCount) { bestWeek = w; bestCount = types.size }
-    }
-    week = bestWeek
-  }
+  const week = recentFiles[0]?.week ?? lastWeekStr()
 
   // All uploads for the active checklist week
   const weekUploads = await prisma.scorecardFile.findMany({
@@ -95,7 +79,7 @@ export default async function ScorecardUploadPage() {
         <h1 className="text-xl font-semibold text-gray-900">Weekly Scorecard Files</h1>
         <p className="text-sm text-gray-500 mt-0.5">
           Showing checklist for week <span className="font-mono font-medium">{week}</span>
-          {recentFiles.length > 0 ? ' (most recent upload)' : ' (last week)'}
+          {recentFiles[0] ? ' (most recent upload)' : ' (last week)'}
         </p>
       </div>
 
