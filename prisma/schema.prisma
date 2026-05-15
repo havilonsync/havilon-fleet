@@ -378,6 +378,7 @@ model DA {
   adpId           String?
   badgeId         String?
   transponderId   String?
+  amazonWorkerId  String?   // Amazon internal worker ID (A39O9WQI9EC2RI format)
   amazonRouteId   String?
   voxerId         String?
   driverLicense   String?

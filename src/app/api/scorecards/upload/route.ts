@@ -3,17 +3,29 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 
+// Amazon's internal worker ID pattern — A followed by 8-15 uppercase alphanumeric chars
+const AMAZON_WORKER_ID_RE = /^A[A-Z0-9]{8,15}$/
+
+function isAmazonWorkerId(s: string): boolean {
+  return AMAZON_WORKER_ID_RE.test(s.trim())
+}
+
 // ─── Column aliases ───────────────────────────────────────────────────────────
 // List longest / most specific aliases first — they score higher in fuzzy matching
 const COL: Record<string, string[]> = {
   daName: [
     'name and id', 'delivery associate', 'associate name', 'driver name',
     'da name', 'employee name', 'full name', 'driver',
-    'name',   // short — only wins if nothing more specific matches
+    'name',
   ],
   transponderId: [
     'transporter id', 'transponder id', 'transponderid', 'transporterid',
-    'associate id', 'employee id', 'driver id', 'da id',
+    'da id',
+  ],
+  // Amazon's internal worker ID (different from transponder ID)
+  amazonWorkerId: [
+    'worker id', 'amazon worker id', 'amazon id', 'cognito id',
+    'associate id', 'employee id', 'driver id',
   ],
   week: [
     'scorecard week', 'reporting week', 'performance week', 'week ending',
@@ -268,53 +280,64 @@ export async function POST(req: NextRequest) {
   const get = (row: string[], field: string) =>
     col[field] >= 0 ? (row[col[field]] ?? '').trim() : ''
 
-  const imported: string[] = []
-  const created:  string[] = []
-  const errors:   { row: number; name: string; reason: string }[] = []
+  const imported:  string[] = []
+  const created:   string[] = []
+  const errors:    { row: number; name: string; reason: string }[] = []
 
   for (let i = 0; i < rows.length; i++) {
     const row     = rows[i]
     const rawName = get(row, 'daName').replace(/\s*\(.*?\)\s*$/, '').trim()
     const tid     = get(row, 'transponderId')
-    if (!rawName && !tid) continue
+
+    // Pull potential Amazon worker ID — either from dedicated column or
+    // from the transponderId column when it matches the Axxxxxx pattern
+    let awid = get(row, 'amazonWorkerId')
+    if (!awid && tid && isAmazonWorkerId(tid)) awid = tid
+    // If tid looks like an Amazon worker ID, don't also use it as transponder ID
+    const realTid = tid && !isAmazonWorkerId(tid) ? tid : ''
+
+    if (!rawName && !realTid && !awid) continue
 
     const week = normalizeWeek(get(row, 'week'), weekFallback)
 
-    // Match existing DA
-    let da = await prisma.dA.findFirst({
-      where: {
-        OR: [
-          ...(rawName ? [{ name: { equals: rawName, mode: 'insensitive' as const } }] : []),
-          ...(tid     ? [{ transponderId: tid }] : []),
-        ],
-      },
-    })
+    // Build OR conditions for finding an existing DA
+    const orConditions: any[] = []
+    if (rawName)  orConditions.push({ name: { equals: rawName, mode: 'insensitive' } })
+    if (realTid)  orConditions.push({ transponderId: realTid })
+    if (awid)     orConditions.push({ amazonWorkerId: awid })
 
-    // Auto-create if not in roster
+    let da = orConditions.length
+      ? await prisma.dA.findFirst({ where: { OR: orConditions } })
+      : null
+
+    // If matched but DA is missing the Amazon worker ID, backfill it
+    if (da && awid && !da.amazonWorkerId) {
+      await prisma.dA.update({ where: { id: da.id }, data: { amazonWorkerId: awid } })
+    }
+
+    // Auto-create DA if still not found
     if (!da) {
-      if (!rawName) {
-        errors.push({ row: i + 2, name: tid, reason: 'No name in row and DA not in roster' })
-        continue
-      }
+      // Use name if available; otherwise use Amazon worker ID as a placeholder name
+      const displayName = rawName || `[Amazon ${awid}]`
       try {
         da = await prisma.dA.create({
           data: {
-            name:          rawName,
-            transponderId: tid || undefined,
-            email:         get(row, 'email') || undefined,
-            phone:         get(row, 'phone') || undefined,
-            status:        'ACTIVE',
+            name:           displayName,
+            transponderId:  realTid || undefined,
+            amazonWorkerId: awid    || undefined,
+            email:          get(row, 'email') || undefined,
+            phone:          get(row, 'phone') || undefined,
+            status:         'ACTIVE',
           },
         })
         created.push(da.name)
       } catch (err: any) {
-        // Duplicate email — find by email instead
         const email = get(row, 'email')
         if (email && err?.code === 'P2002') {
           da = await prisma.dA.findUnique({ where: { email } }) ?? null
         }
         if (!da) {
-          errors.push({ row: i + 2, name: rawName, reason: `Could not create DA: ${err?.message ?? 'unknown'}` })
+          errors.push({ row: i + 2, name: displayName, reason: `Could not create DA: ${err?.message ?? 'unknown'}` })
           continue
         }
       }
