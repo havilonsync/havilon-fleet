@@ -231,7 +231,9 @@ export async function POST(req: NextRequest) {
   const extension     = filename.split('.').pop()?.toLowerCase() ?? ''
   const chosenType    = (formData.get('fileType') as string | null)?.trim() ?? ''
   const fileType      = chosenType || detectFileType(filename)
-  const weekFallback  = weekFromFilename(filename)
+  // Explicit week from the form takes priority over filename detection
+  const selectedWeek  = (formData.get('selectedWeek') as string | null)?.trim() ?? ''
+  const weekFallback  = /^\d{4}-W\d{2}$/.test(selectedWeek) ? selectedWeek : weekFromFilename(filename)
 
   let headers: string[]   = []
   let rows:    string[][] = []

@@ -3,6 +3,7 @@
 import { useState, useRef, ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Upload, CheckCircle, AlertTriangle } from 'lucide-react'
+import { getISOWeek, getYear, subWeeks } from 'date-fns'
 
 interface UploadResult {
   imported:        number
@@ -31,11 +32,23 @@ const FILE_TYPES = [
   { value: 'pod_quality',      label: 'POD Quality',            ext: 'PDF'  },
 ]
 
-export default function UploadForm() {
-  const router    = useRouter()
-  const fileRef   = useRef<HTMLInputElement>(null)
+function buildWeekOptions(count = 12): string[] {
+  return Array.from({ length: count }, (_, i) => {
+    const d = subWeeks(new Date(), i)
+    return `${getYear(d)}-W${String(getISOWeek(d)).padStart(2, '0')}`
+  })
+}
+
+export default function UploadForm({ defaultWeek }: { defaultWeek: string }) {
+  const router      = useRouter()
+  const fileRef     = useRef<HTMLInputElement>(null)
+  const weekOptions = buildWeekOptions()
+
   const [file,     setFile]     = useState<File | null>(null)
   const [fileType, setFileType] = useState<string>('')
+  const [week,     setWeek]     = useState<string>(
+    weekOptions.includes(defaultWeek) ? defaultWeek : weekOptions[0]
+  )
   const [loading,  setLoading]  = useState(false)
   const [result,   setResult]   = useState<UploadResult | null>(null)
   const [error,    setError]    = useState<string | null>(null)
@@ -56,6 +69,7 @@ export default function UploadForm() {
     const form = new FormData()
     form.append('file', file)
     form.append('fileType', fileType)
+    form.append('selectedWeek', week)
     try {
       const res  = await fetch('/api/scorecards/upload', { method: 'POST', body: form })
       const data = await res.json()
@@ -65,7 +79,8 @@ export default function UploadForm() {
         setError(msg)
       } else {
         setResult(data)
-        router.refresh()
+        // Navigate to the uploaded week so the checklist reflects it immediately
+        router.push(`/scorecards/upload?week=${week}`)
       }
     } catch {
       setError('Network error — please try again')
@@ -85,10 +100,31 @@ export default function UploadForm() {
 
       {!result ? (
         <>
-          {/* Step 1: Select file type */}
+          {/* Step 1: Select week */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">
-              1. Select the file type
+              1. Select the scorecard week
+            </label>
+            <select
+              value={week}
+              onChange={e => setWeek(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {weekOptions.map((w, i) => (
+                <option key={w} value={w}>
+                  {w}{i === 1 ? ' (last week — typical)' : i === 0 ? ' (current week)' : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              Amazon publishes scores one week late — if uploading today, you almost always want last week.
+            </p>
+          </div>
+
+          {/* Step 2: Select file type */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              2. Select the file type
             </label>
             <select
               value={fileType}
@@ -104,10 +140,10 @@ export default function UploadForm() {
             </select>
           </div>
 
-          {/* Step 2: Pick file */}
+          {/* Step 3: Pick file */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">
-              2. Choose the file
+              3. Choose the file
             </label>
             <div
               className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
@@ -139,7 +175,7 @@ export default function UploadForm() {
           {file && (
             <div className="flex gap-3">
               <button onClick={handleUpload} disabled={loading || !fileType} className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
-                {loading ? 'Processing…' : `Import "${file.name}"`}
+                {loading ? 'Processing…' : `Import for ${week}`}
               </button>
               <button onClick={reset} className="btn-secondary">Clear</button>
             </div>
@@ -159,7 +195,6 @@ export default function UploadForm() {
 
           {!result.isPdf && (
             <>
-              {/* Column mapping — always shown so mismatches are visible */}
               <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                 <p className="text-xs font-medium text-gray-600">Column mapping ({result.columnMapping.length} of {result.allHeaders.length} detected)</p>
                 <div className="flex flex-wrap gap-1.5">

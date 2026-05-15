@@ -8,6 +8,7 @@ import { ArrowLeft, CheckCircle, Clock, Info } from 'lucide-react'
 import { getISOWeek, getYear, subWeeks } from 'date-fns'
 import prisma from '@/lib/prisma'
 import UploadForm from '@/components/scorecards/UploadForm'
+import WeekSelector from '@/components/scorecards/WeekSelector'
 
 const CHECKLIST: { type: string; label: string; hint: string; ext: string; critical: boolean }[] = [
   { type: 'weekly_overview',  label: 'Weekly Overview',          hint: 'DSP_Overview_Dashboard_HAVL_DDF4_2026-Wnn.csv',   ext: 'CSV',  critical: true  },
@@ -24,19 +25,29 @@ function lastWeekStr(): string {
   return `${getYear(d)}-W${String(getISOWeek(d)).padStart(2, '0')}`
 }
 
-export default async function ScorecardUploadPage() {
+function isValidWeek(s: string): boolean {
+  return /^\d{4}-W\d{2}$/.test(s)
+}
+
+export default async function ScorecardUploadPage({
+  searchParams,
+}: {
+  searchParams: { week?: string }
+}) {
   const session = await getServerSession(authOptions) as any
   if (!session) redirect('/auth/signin')
 
-  // Use the most recently uploaded file's week — after each upload the
-  // checklist immediately reflects that week. Falls back to last week.
-  const recentFiles = await prisma.scorecardFile.findMany({
+  // Resolve active week: URL param → most recent upload → last week
+  const paramWeek = searchParams.week && isValidWeek(searchParams.week)
+    ? searchParams.week
+    : null
+
+  const recentFile = paramWeek ? null : await prisma.scorecardFile.findFirst({
     orderBy: { createdAt: 'desc' },
-    select:  { week: true, fileType: true },
-    take:    1,
+    select:  { week: true },
   })
 
-  const week = recentFiles[0]?.week ?? lastWeekStr()
+  const week = paramWeek ?? recentFile?.week ?? lastWeekStr()
 
   // All uploads for the active checklist week
   const weekUploads = await prisma.scorecardFile.findMany({
@@ -72,15 +83,20 @@ export default async function ScorecardUploadPage() {
   return (
     <div className="max-w-5xl space-y-6">
       {/* Header */}
-      <div>
-        <Link href="/scorecards" className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
-          <ArrowLeft size={14} /> Back to Scorecards
-        </Link>
-        <h1 className="text-xl font-semibold text-gray-900">Weekly Scorecard Files</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Showing checklist for week <span className="font-mono font-medium">{week}</span>
-          {recentFiles[0] ? ' (most recent upload)' : ' (last week)'}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <Link href="/scorecards" className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
+            <ArrowLeft size={14} /> Back to Scorecards
+          </Link>
+          <h1 className="text-xl font-semibold text-gray-900">Weekly Scorecard Files</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Amazon scores are published one week after delivery — select the week you&apos;re uploading for.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-sm text-gray-500 whitespace-nowrap">Viewing week:</span>
+          <WeekSelector current={week} />
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
@@ -89,7 +105,7 @@ export default async function ScorecardUploadPage() {
           {/* Progress */}
           <div className="card p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Week {week}</span>
+              <span className="text-sm font-medium text-gray-700 font-mono">{week}</span>
               <span className="text-xs text-gray-500">{uploadedCount} / {CHECKLIST.length} files</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-2 mb-3">
@@ -153,17 +169,16 @@ export default async function ScorecardUploadPage() {
 
         {/* Right: upload form */}
         <div className="col-span-2 space-y-4">
-          <UploadForm />
+          <UploadForm defaultWeek={week} />
 
           <div className="card p-4 bg-blue-50 border-blue-200">
             <p className="text-xs font-medium text-blue-900 mb-1 flex items-center gap-1.5">
               <Info size={13} /> Upload tips
             </p>
             <p className="text-xs text-blue-800">
-              Always select the correct file type from the dropdown before uploading —
-              Amazon filenames don&apos;t always match what the portal expects.
-              The week is detected from the filename (e.g. <span className="font-mono">..._2026-W19.csv</span>).
-              The checklist updates automatically after each successful upload.
+              Select the correct week and file type before uploading. The week you choose
+              here is what gets stored — use this to correct disputed scores or upload
+              backdated data. The checklist updates automatically after each upload.
             </p>
           </div>
         </div>
