@@ -9,7 +9,7 @@ import { getISOWeek, getYear, subWeeks } from 'date-fns'
 import prisma from '@/lib/prisma'
 import UploadForm from '@/components/scorecards/UploadForm'
 
-export const CHECKLIST: { type: string; label: string; hint: string; ext: string; critical: boolean }[] = [
+const CHECKLIST: { type: string; label: string; hint: string; ext: string; critical: boolean }[] = [
   { type: 'weekly_overview',  label: 'Weekly Overview',          hint: 'DSP_Overview_Dashboard_HAVL_DDF4_2026-Wnn.csv',   ext: 'CSV',  critical: true  },
   { type: 'weekly_trailing',  label: 'Weekly Overview 6-Week',   hint: 'Trailing_Six_Week CSV',                            ext: 'CSV',  critical: true  },
   { type: 'at_stop_safety',   label: 'At-Stop Safety',           hint: 'At-stop / safety scores per DA',                  ext: 'CSV',  critical: true  },
