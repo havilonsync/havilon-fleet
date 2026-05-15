@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import { Upload, CheckCircle, AlertTriangle, FileText } from 'lucide-react'
 
 interface UploadResult {
-  imported: number
-  created:  number
-  skipped:  number
-  errors:   { row: number; name: string; reason: string }[]
-  week:     string
-  isPdf?:   boolean
-  detectedColumns: { field: string; header: string }[]
+  imported:        number
+  created:         number
+  errors:          { row: number; name: string; reason: string }[]
+  week:            string
+  isPdf?:          boolean
+  columnMapping:   { field: string; header: string; how: string }[]
+  allHeaders:      string[]
+  unmappedHeaders: string[]
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -115,18 +116,27 @@ export default function UploadForm() {
 
           {!result.isPdf && (
             <>
-              {result.detectedColumns.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs font-medium text-gray-500 mb-2">Columns detected</p>
-                  <div className="flex flex-wrap gap-2">
-                    {result.detectedColumns.map(({ field, header }) => (
-                      <span key={field} className="text-xs bg-white border border-gray-200 rounded px-2 py-0.5">
-                        <span className="text-gray-400">{FIELD_LABELS[field] ?? field}:</span> {header}
-                      </span>
-                    ))}
-                  </div>
+              {/* Column mapping — always shown so mismatches are visible */}
+              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                <p className="text-xs font-medium text-gray-600">Column mapping ({result.columnMapping.length} of {result.allHeaders.length} detected)</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {result.columnMapping.map(({ field, header }) => (
+                    <span key={field} className="text-xs bg-green-50 border border-green-200 text-green-800 rounded px-2 py-0.5">
+                      ✓ {FIELD_LABELS[field] ?? field} ← <span className="font-mono">{header}</span>
+                    </span>
+                  ))}
                 </div>
-              )}
+                {result.unmappedHeaders?.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Unrecognised columns (not imported):</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {result.unmappedHeaders.map(h => (
+                        <span key={h} className="text-xs bg-gray-100 border border-gray-200 text-gray-500 rounded px-2 py-0.5 font-mono">{h}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="stat-card border-green-200 bg-green-50">
