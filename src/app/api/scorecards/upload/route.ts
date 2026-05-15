@@ -51,6 +51,7 @@ const COL: Record<string, string[]> = {
   ],
   dnrRate: [
     'did not return dpmo', 'did not return rate', 'dnr dpmo', 'dnr rate',
+    'customer delivery failure dpmo', 'cdf dpmo',
     'dnr %', 'dnr',
   ],
   dsbRate: [
